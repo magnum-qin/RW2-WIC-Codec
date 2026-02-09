@@ -1,0 +1,83 @@
+# Build directories
+build/
+out/
+bin/
+lib/
+*.dir/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vcxproj
+*.vcxproj.filters
+*.sln
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+*.cmake
+!CMakeLists.txt
+
+# Compiled Object files
+*.o
+*.obj
+*.pch
+*.pdb
+*.ipdb
+*.iobj
+*.ilk
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+!RW2Codec.dll
+
+# Compiled Static libraries
+*.lib
+*.a
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+
+# Test outputs
+*_output.bmp
+*_output.jpg
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+~*
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# vcpkg
+vcpkg_installed/
+.vcpkg-root
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Package manager
+packages/
