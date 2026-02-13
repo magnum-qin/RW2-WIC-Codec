@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common.h"
-#include <libraw/libraw.h>
+#include <libraw.h>
 
 class RW2FrameDecode : public IWICBitmapFrameDecode
 {

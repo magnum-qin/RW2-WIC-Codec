@@ -1,5 +1,6 @@
 #pragma once
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <wincodec.h>
 #include <wincodecsdk.h>
@@ -10,12 +11,10 @@
 
 // Custom GUIDs for RW2 Codec
 // Declared here, defined in Guids.cpp via INITGUID
+// Note: GUID_ContainerFormatRaw is already defined in wincodec.h
 
 // CLSID for the decoder - {8F3E8E60-9C1A-4B3D-A5E1-7C9F8B2D4A3C}
 EXTERN_C const GUID CLSID_RW2Decoder;
-
-// Container format GUID - {FE99CE60-F19C-433C-A3AE-00ACEFA9CA21}
-EXTERN_C const GUID GUID_ContainerFormatRaw;
 
 // Vendor GUID (Panasonic) - {8F3E8E61-9C1A-4B3D-A5E1-7C9F8B2D4A3C}
 EXTERN_C const GUID GUID_VendorPanasonic;
