@@ -28,6 +28,7 @@ add_library(RW2Codec SHARED
     src/RW2Decoder.cpp
     src/RW2FrameDecode.cpp
     src/Registration.cpp
+    src/Guids.cpp
     src/Utils.cpp
     RW2Codec.def
 )

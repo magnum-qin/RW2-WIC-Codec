@@ -8,6 +8,7 @@ RW2FrameDecode::RW2FrameDecode(const BYTE* pData, size_t dataSize)
     , m_width(0)
     , m_height(0)
     , m_processed(false)
+    , m_processingFailed(false)
 {
     InitializeCriticalSection(&m_cs);
     InterlockedIncrement(&g_objectCount);
@@ -116,10 +117,20 @@ HRESULT RW2FrameDecode::EnsureProcessed()
         return S_OK;
     }
 
+    if (m_processingFailed)
+    {
+        LeaveCriticalSection(&m_cs);
+        return WINCODEC_ERR_BADIMAGE;
+    }
+
     HRESULT hr = ProcessRawData();
     if (SUCCEEDED(hr))
     {
         m_processed = true;
+    }
+    else
+    {
+        m_processingFailed = true;
     }
 
     LeaveCriticalSection(&m_cs);
@@ -214,8 +225,8 @@ STDMETHODIMP RW2FrameDecode::CopyPixels(const WICRect* prc, UINT cbStride, UINT 
     if (cbStride < minStride)
         return E_INVALIDARG;
 
-    // Validate buffer size
-    UINT requiredSize = cbStride * copyRect.Height;
+    // Validate buffer size (use 64-bit to prevent overflow)
+    ULONGLONG requiredSize = (ULONGLONG)cbStride * copyRect.Height;
     if (cbBufferSize < requiredSize)
         return E_INVALIDARG;
 

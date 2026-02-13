@@ -81,8 +81,7 @@ STDMETHODIMP RW2Decoder::QueryCapability(IStream* pIStream, DWORD* pdwCapability
     if (!isValid)
         return WINCODEC_ERR_COMPONENTNOTFOUND;
 
-    *pdwCapability = WICBitmapDecoderCapabilityCanDecodeAllImages |
-                     WICBitmapDecoderCapabilityCanDecodeThumbnail;
+    *pdwCapability = WICBitmapDecoderCapabilityCanDecodeAllImages;
 
     return S_OK;
 }

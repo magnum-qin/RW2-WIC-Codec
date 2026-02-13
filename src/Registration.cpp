@@ -47,6 +47,8 @@ HRESULT SetRegistryKeyDWORD(HKEY hKey, LPCWSTR lpszValueName, DWORD dwValue)
     return HRESULT_FROM_WIN32(result);
 }
 
+extern HMODULE g_hModule;
+
 HRESULT RegisterCodec()
 {
     HRESULT hr = S_OK;
@@ -55,8 +57,8 @@ HRESULT RegisterCodec()
     WCHAR szCLSID[40];
     WCHAR szModulePath[MAX_PATH];
 
-    // Get module path
-    GetModuleFileNameW(nullptr, szModulePath, MAX_PATH);
+    // Get DLL module path (not the calling process)
+    GetModuleFileNameW(g_hModule, szModulePath, MAX_PATH);
 
     // Convert CLSID to string
     StringFromGUID2(CLSID_RW2Decoder, szCLSID, ARRAYSIZE(szCLSID));

@@ -40,4 +40,5 @@ private:
     UINT m_width;
     UINT m_height;
     bool m_processed;
+    bool m_processingFailed;
 };
