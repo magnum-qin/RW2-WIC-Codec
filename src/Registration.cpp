@@ -54,6 +54,7 @@ HRESULT RegisterCodec()
     HRESULT hr = S_OK;
     HKEY hKey = nullptr;
     HKEY hSubKey = nullptr;
+    HKEY hPatternKey = nullptr;
     WCHAR szCLSID[40];
     WCHAR szModulePath[MAX_PATH];
 
@@ -86,51 +87,220 @@ HRESULT RegisterCodec()
     RegCloseKey(hSubKey);
     hSubKey = nullptr;
 
-    // Register as WIC Bitmap Decoder
-    RegCloseKey(hKey);
-    hKey = nullptr;
-
-    WCHAR szDecoderKey[512];
-    StringCchPrintfW(szDecoderKey, ARRAYSIZE(szDecoderKey),
-        L"CLSID\\{7ED96837-96F0-4812-B211-F13C24117ED3}\\Instance\\%s", szCLSID);
-
-    hr = CreateRegistryKey(HKEY_CLASSES_ROOT, szDecoderKey, &hKey);
-    if (FAILED(hr)) goto cleanup;
-
-    hr = SetRegistryKeyValue(hKey, L"CLSID", szCLSID);
-    if (FAILED(hr)) goto cleanup;
-
+    // ============================================================
+    // Register decoder metadata under our own CLSID key
+    // WIC's IWICBitmapDecoderInfo reads Patterns, FriendlyName,
+    // FileExtensions, etc. from HERE (not from the Instance key)
+    // ============================================================
     hr = SetRegistryKeyValue(hKey, L"FriendlyName", L"Panasonic RW2 Decoder");
     if (FAILED(hr)) goto cleanup;
 
-    // Register file extensions
+    hr = SetRegistryKeyValue(hKey, L"Author", L"RW2-WIC-Codec");
+    if (FAILED(hr)) goto cleanup;
+
     hr = SetRegistryKeyValue(hKey, L"FileExtensions", L".rw2,.RW2");
     if (FAILED(hr)) goto cleanup;
 
-    // Register MIME types
     hr = SetRegistryKeyValue(hKey, L"MimeTypes", L"image/x-panasonic-rw2");
     if (FAILED(hr)) goto cleanup;
 
-    // Vendor GUID
-    WCHAR szVendorGUID[40];
-    StringFromGUID2(GUID_VendorPanasonic, szVendorGUID, ARRAYSIZE(szVendorGUID));
-    hr = SetRegistryKeyValue(hKey, L"Vendor", szVendorGUID);
-    if (FAILED(hr)) goto cleanup;
+    {
+        WCHAR szContainerGUID[40];
+        StringFromGUID2(GUID_ContainerFormatRaw, szContainerGUID, ARRAYSIZE(szContainerGUID));
+        hr = SetRegistryKeyValue(hKey, L"ContainerFormat", szContainerGUID);
+        if (FAILED(hr)) goto cleanup;
+    }
 
-    // Version
+    {
+        WCHAR szVendorGUID[40];
+        StringFromGUID2(GUID_VendorPanasonic, szVendorGUID, ARRAYSIZE(szVendorGUID));
+        hr = SetRegistryKeyValue(hKey, L"Vendor", szVendorGUID);
+        if (FAILED(hr)) goto cleanup;
+    }
+
     hr = SetRegistryKeyValue(hKey, L"Version", L"1.0.0.0");
     if (FAILED(hr)) goto cleanup;
 
-    // Supports lossless
-    hr = SetRegistryKeyDWORD(hKey, L"SupportsLossless", 1);
+    hr = SetRegistryKeyDWORD(hKey, L"SupportAnimation", 0);
     if (FAILED(hr)) goto cleanup;
 
-    // Container format
-    WCHAR szContainerGUID[40];
-    StringFromGUID2(GUID_ContainerFormatRaw, szContainerGUID, ARRAYSIZE(szContainerGUID));
-    hr = SetRegistryKeyValue(hKey, L"ContainerFormat", szContainerGUID);
+    hr = SetRegistryKeyDWORD(hKey, L"SupportLossless", 1);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = SetRegistryKeyDWORD(hKey, L"SupportMultiframe", 0);
+    if (FAILED(hr)) goto cleanup;
+
+    // Register Patterns under our CLSID key
+    hr = CreateRegistryKey(hKey, L"Patterns", &hSubKey);
+    if (FAILED(hr)) goto cleanup;
+
+    // Pattern 0: Panasonic RW2 signature "II" + 0x0055
+    hr = CreateRegistryKey(hSubKey, L"0", &hPatternKey);
+    if (FAILED(hr)) goto cleanup;
+
+    {
+        hr = SetRegistryKeyDWORD(hPatternKey, L"Position", 0);
+        if (FAILED(hr)) goto cleanup;
+
+        hr = SetRegistryKeyDWORD(hPatternKey, L"Length", 4);
+        if (FAILED(hr)) goto cleanup;
+
+        BYTE pattern[] = { 0x49, 0x49, 0x55, 0x00 };
+        LONG result = RegSetValueExW(hPatternKey, L"Pattern", 0, REG_BINARY,
+            pattern, sizeof(pattern));
+        hr = HRESULT_FROM_WIN32(result);
+        if (FAILED(hr)) goto cleanup;
+
+        BYTE mask[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+        result = RegSetValueExW(hPatternKey, L"Mask", 0, REG_BINARY,
+            mask, sizeof(mask));
+        hr = HRESULT_FROM_WIN32(result);
+        if (FAILED(hr)) goto cleanup;
+
+        hr = SetRegistryKeyDWORD(hPatternKey, L"EndOfStream", 0);
+        if (FAILED(hr)) goto cleanup;
+    }
+
+    RegCloseKey(hPatternKey);
+    hPatternKey = nullptr;
+    RegCloseKey(hSubKey);
+    hSubKey = nullptr;
+
+    // Register as WIC Bitmap Decoder Instance
+    RegCloseKey(hKey);
+    hKey = nullptr;
+
+    {
+        WCHAR szDecoderKey[512];
+        StringCchPrintfW(szDecoderKey, ARRAYSIZE(szDecoderKey),
+            L"CLSID\\{7ED96837-96F0-4812-B211-F13C24117ED3}\\Instance\\%s", szCLSID);
+
+        hr = CreateRegistryKey(HKEY_CLASSES_ROOT, szDecoderKey, &hKey);
+        if (FAILED(hr)) goto cleanup;
+
+        hr = SetRegistryKeyValue(hKey, L"CLSID", szCLSID);
+        if (FAILED(hr)) goto cleanup;
+
+        hr = SetRegistryKeyValue(hKey, L"FriendlyName", L"Panasonic RW2 Decoder");
+        if (FAILED(hr)) goto cleanup;
+
+        // Register file extensions
+        hr = SetRegistryKeyValue(hKey, L"FileExtensions", L".rw2,.RW2");
+        if (FAILED(hr)) goto cleanup;
+
+        // Register MIME types
+        hr = SetRegistryKeyValue(hKey, L"MimeTypes", L"image/x-panasonic-rw2");
+        if (FAILED(hr)) goto cleanup;
+
+        // Vendor GUID
+        WCHAR szVendorGUID[40];
+        StringFromGUID2(GUID_VendorPanasonic, szVendorGUID, ARRAYSIZE(szVendorGUID));
+        hr = SetRegistryKeyValue(hKey, L"Vendor", szVendorGUID);
+        if (FAILED(hr)) goto cleanup;
+
+        // Version
+        hr = SetRegistryKeyValue(hKey, L"Version", L"1.0.0.0");
+        if (FAILED(hr)) goto cleanup;
+
+        // Supports lossless
+        hr = SetRegistryKeyDWORD(hKey, L"SupportsLossless", 1);
+        if (FAILED(hr)) goto cleanup;
+
+        // Container format
+        WCHAR szContainerGUID[40];
+        StringFromGUID2(GUID_ContainerFormatRaw, szContainerGUID, ARRAYSIZE(szContainerGUID));
+        hr = SetRegistryKeyValue(hKey, L"ContainerFormat", szContainerGUID);
+        if (FAILED(hr)) goto cleanup;
+
+        // ArbitrationPriority: 0 = highest priority, overrides Microsoft's Raw Image Decoder
+        hr = SetRegistryKeyDWORD(hKey, L"ArbitrationPriority", 0);
+        if (FAILED(hr)) goto cleanup;
+
+        // ============================================================
+        // Register Patterns subkey - CRITICAL for WIC file matching!
+        // Without this, WIC cannot associate .rw2 files with our codec.
+        // RW2 files use TIFF little-endian format: "II" + 0x55 0x00
+        // ============================================================
+        hr = CreateRegistryKey(hKey, L"Patterns", &hSubKey);
+        if (FAILED(hr)) goto cleanup;
+
+        // Pattern 0: Panasonic RW2 signature "II" + 0x0055 (Panasonic variant)
+        hr = CreateRegistryKey(hSubKey, L"0", &hPatternKey);
+        if (FAILED(hr)) goto cleanup;
+
+        {
+            // Position = 0 (start of file)
+            hr = SetRegistryKeyDWORD(hPatternKey, L"Position", 0);
+            if (FAILED(hr)) goto cleanup;
+
+            // Length = 4 bytes
+            hr = SetRegistryKeyDWORD(hPatternKey, L"Length", 4);
+            if (FAILED(hr)) goto cleanup;
+
+            // Pattern: "II" (0x49 0x49) + 0x55 0x00 (Panasonic TIFF variant)
+            BYTE pattern[] = { 0x49, 0x49, 0x55, 0x00 };
+            LONG result = RegSetValueExW(hPatternKey, L"Pattern", 0, REG_BINARY,
+                pattern, sizeof(pattern));
+            hr = HRESULT_FROM_WIN32(result);
+            if (FAILED(hr)) goto cleanup;
+
+            // Mask: all bytes must match
+            BYTE mask[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+            result = RegSetValueExW(hPatternKey, L"Mask", 0, REG_BINARY,
+                mask, sizeof(mask));
+            hr = HRESULT_FROM_WIN32(result);
+            if (FAILED(hr)) goto cleanup;
+        }
+
+        RegCloseKey(hPatternKey);
+        hPatternKey = nullptr;
+
+        // Pattern 1: Standard TIFF little-endian "II" + 0x002A
+        // (some RW2 files may use standard TIFF magic)
+        hr = CreateRegistryKey(hSubKey, L"1", &hPatternKey);
+        if (FAILED(hr)) goto cleanup;
+
+        {
+            hr = SetRegistryKeyDWORD(hPatternKey, L"Position", 0);
+            if (FAILED(hr)) goto cleanup;
+
+            hr = SetRegistryKeyDWORD(hPatternKey, L"Length", 4);
+            if (FAILED(hr)) goto cleanup;
+
+            BYTE pattern[] = { 0x49, 0x49, 0x2A, 0x00 };
+            LONG result = RegSetValueExW(hPatternKey, L"Pattern", 0, REG_BINARY,
+                pattern, sizeof(pattern));
+            hr = HRESULT_FROM_WIN32(result);
+            if (FAILED(hr)) goto cleanup;
+
+            BYTE mask[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+            result = RegSetValueExW(hPatternKey, L"Mask", 0, REG_BINARY,
+                mask, sizeof(mask));
+            hr = HRESULT_FROM_WIN32(result);
+            if (FAILED(hr)) goto cleanup;
+        }
+
+        RegCloseKey(hPatternKey);
+        hPatternKey = nullptr;
+        RegCloseKey(hSubKey);
+        hSubKey = nullptr;
+    }
+
+    // Register .rw2 file extension to point to our codec
+    {
+        HKEY hExtKey = nullptr;
+        hr = CreateRegistryKey(HKEY_CLASSES_ROOT, L".rw2", &hExtKey);
+        if (SUCCEEDED(hr))
+        {
+            SetRegistryKeyValue(hExtKey, L"Content Type", L"image/x-panasonic-rw2");
+            SetRegistryKeyValue(hExtKey, L"PerceivedType", L"image");
+            RegCloseKey(hExtKey);
+        }
+    }
 
 cleanup:
+    if (hPatternKey)
+        RegCloseKey(hPatternKey);
     if (hSubKey)
         RegCloseKey(hSubKey);
     if (hKey)

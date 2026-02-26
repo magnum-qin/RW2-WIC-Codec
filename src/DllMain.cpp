@@ -12,6 +12,20 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     case DLL_PROCESS_ATTACH:
         g_hModule = hModule;
         DisableThreadLibraryCalls(hModule);
+
+        // Add our DLL's directory to the DLL search path so that
+        // dependent DLLs (raw.dll, lcms2-2.dll, zlib1.dll) can be found
+        // when WIC loads RW2Codec.dll from another process (e.g. explorer.exe)
+        {
+            WCHAR dllPath[MAX_PATH];
+            if (GetModuleFileNameW(hModule, dllPath, MAX_PATH) > 0)
+            {
+                // Remove filename, keep directory
+                WCHAR* lastSlash = wcsrchr(dllPath, L'\\');
+                if (lastSlash) *lastSlash = L'\0';
+                SetDllDirectoryW(dllPath);
+            }
+        }
         break;
     case DLL_PROCESS_DETACH:
         break;

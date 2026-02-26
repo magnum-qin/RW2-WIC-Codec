@@ -157,7 +157,9 @@ STDMETHODIMP RW2FrameDecode::GetPixelFormat(WICPixelFormatGUID* pPixelFormat)
     if (pPixelFormat == nullptr)
         return E_INVALIDARG;
 
-    *pPixelFormat = GUID_WICPixelFormat24bppRGB;
+    // LibRaw outputs RGB, but WIC consumers expect BGR memory layout.
+    // We report BGR and swap R/B channels in CopyPixels.
+    *pPixelFormat = GUID_WICPixelFormat24bppBGR;
     return S_OK;
 }
 
@@ -230,13 +232,21 @@ STDMETHODIMP RW2FrameDecode::CopyPixels(const WICRect* prc, UINT cbStride, UINT 
     if (cbBufferSize < requiredSize)
         return E_INVALIDARG;
 
-    // Copy pixel data
+    // Copy pixel data, converting LibRaw RGB -> WIC BGR
     BYTE* pSrc = m_processedImage->data + (copyRect.Y * imageStride) + (copyRect.X * bytesPerPixel);
     BYTE* pDst = pbBuffer;
 
     for (INT row = 0; row < copyRect.Height; ++row)
     {
-        memcpy(pDst, pSrc, minStride);
+        // Swap R and B channels: LibRaw gives R,G,B but WIC 24bppBGR expects B,G,R
+        for (INT col = 0; col < copyRect.Width; ++col)
+        {
+            BYTE* srcPixel = pSrc + col * bytesPerPixel;
+            BYTE* dstPixel = pDst + col * bytesPerPixel;
+            dstPixel[0] = srcPixel[2]; // B <- R
+            dstPixel[1] = srcPixel[1]; // G <- G
+            dstPixel[2] = srcPixel[0]; // R <- B
+        }
         pSrc += imageStride;
         pDst += cbStride;
     }
