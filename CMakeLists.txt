@@ -43,6 +43,9 @@ target_link_libraries(TestDecoder PRIVATE
     oleaut32
 )
 
+add_executable(TestPerf tests/TestPerf.cpp)
+target_link_libraries(TestPerf PRIVATE libraw::raw)
+
 # Installation
 install(TARGETS RW2Codec
     RUNTIME DESTINATION bin

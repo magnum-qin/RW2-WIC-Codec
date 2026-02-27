@@ -86,7 +86,7 @@ HRESULT RW2FrameDecode::ProcessRawData()
     m_rawProcessor->imgdata.params.use_camera_wb = 1;      // Use camera white balance
     m_rawProcessor->imgdata.params.output_color = 1;       // sRGB color space
     m_rawProcessor->imgdata.params.output_bps = 8;         // 8-bit output
-    m_rawProcessor->imgdata.params.user_qual = 3;          // AHD interpolation (high quality)
+    m_rawProcessor->imgdata.params.user_qual = 2;          // PPG interpolation (excellent quality, 3x faster than AHD)
     m_rawProcessor->imgdata.params.no_auto_bright = 0;     // Enable auto brightness
     m_rawProcessor->imgdata.params.use_fuji_rotate = 1;    // Auto-rotate
 
