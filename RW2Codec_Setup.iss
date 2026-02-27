@@ -49,13 +49,15 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 ; Dependencies must be extracted BEFORE the codec registers, so regsvr32 can find them.
-Source: "scripts\lcms2-2.dll"; DestDir: "{app}"; Flags: ignoreversion 64bit
-Source: "scripts\raw.dll"; DestDir: "{app}"; Flags: ignoreversion 64bit
-Source: "scripts\zlib1.dll"; DestDir: "{app}"; Flags: ignoreversion 64bit
+; Use restartreplace/uninsrestartdelete so if explorer is locking them, Windows replaces them on reboot gracefully.
+Source: "scripts\lcms2-2.dll"; DestDir: "{app}"; Flags: ignoreversion 64bit restartreplace uninsrestartdelete
+Source: "scripts\raw.dll"; DestDir: "{app}"; Flags: ignoreversion 64bit restartreplace uninsrestartdelete
+Source: "scripts\zlib1.dll"; DestDir: "{app}"; Flags: ignoreversion 64bit restartreplace uninsrestartdelete
 
 ; IMPORTANT: The 'regserver' flag automatically runs regsvr32 during install and regsvr32 /u during uninstall.
 ; '64bit' flag ensures it is registered in the 64-bit registry.
-Source: "build\Release\RW2Codec.dll"; DestDir: "{app}"; Flags: ignoreversion regserver 64bit
+Source: "build\Release\RW2Codec.dll"; DestDir: "{app}"; Flags: ignoreversion regserver 64bit restartreplace uninsrestartdelete
+
 
 [Icons]
 ; Creates an uninstall shortcut in the Start Menu

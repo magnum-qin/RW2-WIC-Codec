@@ -179,7 +179,83 @@ STDMETHODIMP RW2Decoder::GetColorContexts(UINT cCount, IWICColorContext** ppICol
 
 STDMETHODIMP RW2Decoder::GetThumbnail(IWICBitmapSource** ppIThumbnail)
 {
-    return WINCODEC_ERR_CODECNOTHUMBNAIL; // Could extract embedded JPEG thumbnail
+    if (ppIThumbnail == nullptr)
+        return E_INVALIDARG;
+
+    *ppIThumbnail = nullptr;
+
+    if (!m_initialized)
+        return WINCODEC_ERR_NOTINITIALIZED;
+
+    // Use a local LibRaw instance just to grab the thumbnail quickly
+    LibRaw thumbRaw;
+    int ret = thumbRaw.open_buffer(m_fileData.data(), m_fileData.size());
+    if (ret != LIBRAW_SUCCESS)
+        return WINCODEC_ERR_BADIMAGE;
+
+    ret = thumbRaw.unpack_thumb();
+    if (ret != LIBRAW_SUCCESS)
+        return WINCODEC_ERR_CODECNOTHUMBNAIL;
+
+    // We only handle embedded JPEG thumbnails
+    if (thumbRaw.imgdata.thumbnail.tformat != LIBRAW_THUMBNAIL_JPEG || 
+        thumbRaw.imgdata.thumbnail.tlength == 0 || 
+        thumbRaw.imgdata.thumbnail.thumb == nullptr)
+    {
+        return WINCODEC_ERR_CODECNOTHUMBNAIL;
+    }
+
+    // Allocate memory for the JPEG stream
+    HGLOBAL hGlobal = GlobalAlloc(GMEM_MOVEABLE, thumbRaw.imgdata.thumbnail.tlength);
+    if (!hGlobal)
+        return E_OUTOFMEMORY;
+
+    void* pData = GlobalLock(hGlobal);
+    if (pData)
+    {
+        memcpy(pData, thumbRaw.imgdata.thumbnail.thumb, thumbRaw.imgdata.thumbnail.tlength);
+        GlobalUnlock(hGlobal);
+    }
+    else
+    {
+        GlobalFree(hGlobal);
+        return E_OUTOFMEMORY;
+    }
+
+    // Create an IStream over the global memory
+    IStream* pStream = nullptr;
+    HRESULT hr = CreateStreamOnHGlobal(hGlobal, TRUE, &pStream); // TRUE means stream frees hGlobal on release
+    if (FAILED(hr))
+    {
+        GlobalFree(hGlobal);
+        return hr;
+    }
+
+    // Create a generic WIC Factory to decode the JPEG stream
+    IWICImagingFactory* pFactory = nullptr;
+    hr = CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pFactory));
+    if (SUCCEEDED(hr))
+    {
+        IWICBitmapDecoder* pJpegDecoder = nullptr;
+        // Ask WIC to automatically deduce it's a JPEG and create a decoder
+        hr = pFactory->CreateDecoderFromStream(pStream, nullptr, WICDecodeMetadataCacheOnDemand, &pJpegDecoder);
+        if (SUCCEEDED(hr))
+        {
+            IWICBitmapFrameDecode* pFrame = nullptr;
+            hr = pJpegDecoder->GetFrame(0, &pFrame);
+            if (SUCCEEDED(hr))
+            {
+                // The frame itself implements IWICBitmapSource
+                hr = pFrame->QueryInterface(IID_IWICBitmapSource, (void**)ppIThumbnail);
+                pFrame->Release();
+            }
+            pJpegDecoder->Release();
+        }
+        pFactory->Release();
+    }
+
+    pStream->Release();
+    return hr;
 }
 
 STDMETHODIMP RW2Decoder::GetFrameCount(UINT* pCount)
