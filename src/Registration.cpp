@@ -166,6 +166,22 @@ HRESULT RegisterCodec()
     RegCloseKey(hSubKey);
     hSubKey = nullptr;
 
+    // Register supported pixel formats
+    hr = CreateRegistryKey(hKey, L"Formats", &hSubKey);
+    if (FAILED(hr)) goto cleanup;
+
+    {
+        WCHAR szPixelFormatGUID[40];
+        StringFromGUID2(GUID_WICPixelFormat24bppBGR, szPixelFormatGUID, ARRAYSIZE(szPixelFormatGUID));
+        HKEY hFormatKey = nullptr;
+        hr = CreateRegistryKey(hSubKey, szPixelFormatGUID, &hFormatKey);
+        if (hFormatKey) RegCloseKey(hFormatKey);
+        if (FAILED(hr)) goto cleanup;
+    }
+
+    RegCloseKey(hSubKey);
+    hSubKey = nullptr;
+
     // Register as WIC Bitmap Decoder Instance
     RegCloseKey(hKey);
     hKey = nullptr;
@@ -255,33 +271,6 @@ HRESULT RegisterCodec()
         RegCloseKey(hPatternKey);
         hPatternKey = nullptr;
 
-        // Pattern 1: Standard TIFF little-endian "II" + 0x002A
-        // (some RW2 files may use standard TIFF magic)
-        hr = CreateRegistryKey(hSubKey, L"1", &hPatternKey);
-        if (FAILED(hr)) goto cleanup;
-
-        {
-            hr = SetRegistryKeyDWORD(hPatternKey, L"Position", 0);
-            if (FAILED(hr)) goto cleanup;
-
-            hr = SetRegistryKeyDWORD(hPatternKey, L"Length", 4);
-            if (FAILED(hr)) goto cleanup;
-
-            BYTE pattern[] = { 0x49, 0x49, 0x2A, 0x00 };
-            LONG result = RegSetValueExW(hPatternKey, L"Pattern", 0, REG_BINARY,
-                pattern, sizeof(pattern));
-            hr = HRESULT_FROM_WIN32(result);
-            if (FAILED(hr)) goto cleanup;
-
-            BYTE mask[] = { 0xFF, 0xFF, 0xFF, 0xFF };
-            result = RegSetValueExW(hPatternKey, L"Mask", 0, REG_BINARY,
-                mask, sizeof(mask));
-            hr = HRESULT_FROM_WIN32(result);
-            if (FAILED(hr)) goto cleanup;
-        }
-
-        RegCloseKey(hPatternKey);
-        hPatternKey = nullptr;
         RegCloseKey(hSubKey);
         hSubKey = nullptr;
     }
@@ -324,6 +313,9 @@ HRESULT UnregisterCodec()
     StringCchPrintfW(szDecoderKey, ARRAYSIZE(szDecoderKey),
         L"CLSID\\{7ED96837-96F0-4812-B211-F13C24117ED3}\\Instance\\%s", szCLSID);
     RegDeleteTreeW(HKEY_CLASSES_ROOT, szDecoderKey);
+
+    // Delete .rw2 file extension association
+    RegDeleteTreeW(HKEY_CLASSES_ROOT, L".rw2");
 
     return S_OK;
 }

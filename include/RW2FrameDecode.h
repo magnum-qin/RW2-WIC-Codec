@@ -6,7 +6,7 @@
 class RW2FrameDecode : public IWICBitmapFrameDecode
 {
 public:
-    RW2FrameDecode(const BYTE* pData, size_t dataSize);
+    RW2FrameDecode(std::shared_ptr<std::vector<BYTE>> pData);
     virtual ~RW2FrameDecode();
 
     // IUnknown methods
@@ -33,7 +33,7 @@ private:
     LONG m_refCount;
     CRITICAL_SECTION m_cs;
 
-    std::vector<BYTE> m_rawData;
+    std::shared_ptr<std::vector<BYTE>> m_rawData;
     std::unique_ptr<LibRaw> m_rawProcessor;
     libraw_processed_image_t* m_processedImage;
 

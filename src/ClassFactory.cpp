@@ -55,14 +55,25 @@ STDMETHODIMP ClassFactory::CreateInstance(IUnknown* pUnkOuter, REFIID riid, void
     if (pUnkOuter != nullptr)
         return CLASS_E_NOAGGREGATION;
 
-    RW2Decoder* pDecoder = new (std::nothrow) RW2Decoder();
-    if (pDecoder == nullptr)
+    try
+    {
+        RW2Decoder* pDecoder = new (std::nothrow) RW2Decoder();
+        if (pDecoder == nullptr)
+            return E_OUTOFMEMORY;
+
+        HRESULT hr = pDecoder->QueryInterface(riid, ppvObject);
+        pDecoder->Release();
+
+        return hr;
+    }
+    catch (const std::bad_alloc&)
+    {
         return E_OUTOFMEMORY;
-
-    HRESULT hr = pDecoder->QueryInterface(riid, ppvObject);
-    pDecoder->Release();
-
-    return hr;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
 }
 
 STDMETHODIMP ClassFactory::LockServer(BOOL fLock)

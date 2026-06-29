@@ -24,176 +24,175 @@ bool TestDecoder(const wchar_t* filePath)
         return false;
     }
 
-    CComPtr<IWICImagingFactory> pFactory;
-    CComPtr<IWICBitmapDecoder> pDecoder;
-    CComPtr<IWICBitmapFrameDecode> pFrame;
-    CComPtr<IWICStream> pStream;
-
-    // Create WIC factory
-    hr = CoCreateInstance(
-        CLSID_WICImagingFactory,
-        nullptr,
-        CLSCTX_INPROC_SERVER,
-        IID_PPV_ARGS(&pFactory)
-    );
-
-    if (FAILED(hr))
+    bool success = false;
     {
-        PrintError("Failed to create WIC factory", hr);
-        CoUninitialize();
-        return false;
-    }
+        CComPtr<IWICImagingFactory> pFactory;
+        CComPtr<IWICBitmapDecoder> pDecoder;
+        CComPtr<IWICBitmapFrameDecode> pFrame;
+        CComPtr<IWICStream> pStream;
 
-    // Create stream
-    hr = pFactory->CreateStream(&pStream);
-    if (FAILED(hr))
-    {
-        PrintError("Failed to create stream", hr);
-        CoUninitialize();
-        return false;
-    }
+        // Create WIC factory
+        hr = CoCreateInstance(
+            CLSID_WICImagingFactory,
+            nullptr,
+            CLSCTX_INPROC_SERVER,
+            IID_PPV_ARGS(&pFactory)
+        );
 
-    // Initialize stream from file
-    hr = pStream->InitializeFromFilename(filePath, GENERIC_READ);
-    if (FAILED(hr))
-    {
-        PrintError("Failed to open file", hr);
-        CoUninitialize();
-        return false;
-    }
+        if (SUCCEEDED(hr))
+        {
+            // Create stream
+            hr = pFactory->CreateStream(&pStream);
+        }
 
-    // Create decoder from stream
-    hr = pFactory->CreateDecoderFromStream(
-        pStream,
-        nullptr,
-        WICDecodeMetadataCacheOnDemand,
-        &pDecoder
-    );
+        if (SUCCEEDED(hr))
+        {
+            // Initialize stream from file
+            hr = pStream->InitializeFromFilename(filePath, GENERIC_READ);
+        }
 
-    if (FAILED(hr))
-    {
-        PrintError("Failed to create decoder", hr);
-        CoUninitialize();
-        return false;
-    }
+        if (SUCCEEDED(hr))
+        {
+            // Create decoder from stream
+            hr = pFactory->CreateDecoderFromStream(
+                pStream,
+                nullptr,
+                WICDecodeMetadataCacheOnDemand,
+                &pDecoder
+            );
+        }
 
-    std::wcout << L"✓ Successfully created decoder for: " << filePath << std::endl;
+        if (FAILED(hr))
+        {
+            PrintError("Failed to initialize decoder", hr);
+        }
+        else
+        {
+            std::wcout << L"✓ Successfully created decoder for: " << filePath << std::endl;
 
-    // Get frame count
-    UINT frameCount = 0;
-    hr = pDecoder->GetFrameCount(&frameCount);
-    if (SUCCEEDED(hr))
-    {
-        std::wcout << L"  Frame count: " << frameCount << std::endl;
-    }
+            // Get frame count
+            UINT frameCount = 0;
+            hr = pDecoder->GetFrameCount(&frameCount);
+            if (SUCCEEDED(hr))
+            {
+                std::wcout << L"  Frame count: " << frameCount << std::endl;
+            }
 
-    // Get first frame
-    hr = pDecoder->GetFrame(0, &pFrame);
-    if (FAILED(hr))
-    {
-        PrintError("Failed to get frame", hr);
-        CoUninitialize();
-        return false;
-    }
+            // Get first frame
+            hr = pDecoder->GetFrame(0, &pFrame);
+            if (FAILED(hr))
+            {
+                PrintError("Failed to get frame", hr);
+            }
+            else
+            {
+                // Get image size
+                UINT width = 0, height = 0;
+                hr = pFrame->GetSize(&width, &height);
+                if (SUCCEEDED(hr))
+                {
+                    std::wcout << L"  Image size: " << width << L" x " << height << std::endl;
+                }
 
-    // Get image size
-    UINT width = 0, height = 0;
-    hr = pFrame->GetSize(&width, &height);
-    if (SUCCEEDED(hr))
-    {
-        std::wcout << L"  Image size: " << width << L" x " << height << std::endl;
-    }
+                // Get pixel format
+                WICPixelFormatGUID pixelFormat;
+                hr = pFrame->GetPixelFormat(&pixelFormat);
+                if (SUCCEEDED(hr))
+                {
+                    std::wcout << L"  Pixel format retrieved successfully" << std::endl;
+                }
 
-    // Get pixel format
-    WICPixelFormatGUID pixelFormat;
-    hr = pFrame->GetPixelFormat(&pixelFormat);
-    if (SUCCEEDED(hr))
-    {
-        std::wcout << L"  Pixel format retrieved successfully" << std::endl;
-    }
+                // Get resolution
+                double dpiX = 0, dpiY = 0;
+                hr = pFrame->GetResolution(&dpiX, &dpiY);
+                if (SUCCEEDED(hr))
+                {
+                    std::wcout << L"  Resolution: " << dpiX << L" x " << dpiY << L" DPI" << std::endl;
+                }
 
-    // Get resolution
-    double dpiX = 0, dpiY = 0;
-    hr = pFrame->GetResolution(&dpiX, &dpiY);
-    if (SUCCEEDED(hr))
-    {
-        std::wcout << L"  Resolution: " << dpiX << L" x " << dpiY << L" DPI" << std::endl;
-    }
+                // Try to save as BMP
+                std::wstring outputPath = filePath;
+                size_t dotPos = outputPath.find_last_of(L'.');
+                if (dotPos != std::wstring::npos)
+                {
+                    outputPath = outputPath.substr(0, dotPos);
+                }
+                outputPath += L"_output.bmp";
 
-    // Try to save as BMP
-    std::wstring outputPath = filePath;
-    size_t dotPos = outputPath.find_last_of(L'.');
-    if (dotPos != std::wstring::npos)
-    {
-        outputPath = outputPath.substr(0, dotPos);
-    }
-    outputPath += L"_output.bmp";
+                CComPtr<IWICStream> pOutputStream;
+                CComPtr<IWICBitmapEncoder> pEncoder;
 
-    CComPtr<IWICStream> pOutputStream;
-    CComPtr<IWICBitmapEncoder> pEncoder;
+                hr = pFactory->CreateStream(&pOutputStream);
+                if (SUCCEEDED(hr))
+                {
+                    hr = pOutputStream->InitializeFromFilename(outputPath.c_str(), GENERIC_WRITE);
+                }
 
-    hr = pFactory->CreateStream(&pOutputStream);
-    if (SUCCEEDED(hr))
-    {
-        hr = pOutputStream->InitializeFromFilename(outputPath.c_str(), GENERIC_WRITE);
-    }
+                if (SUCCEEDED(hr))
+                {
+                    hr = pFactory->CreateEncoder(GUID_ContainerFormatBmp, nullptr, &pEncoder);
+                }
 
-    if (SUCCEEDED(hr))
-    {
-        hr = pFactory->CreateEncoder(GUID_ContainerFormatBmp, nullptr, &pEncoder);
-    }
+                if (SUCCEEDED(hr))
+                {
+                    hr = pEncoder->Initialize(pOutputStream, WICBitmapEncoderNoCache);
+                }
 
-    if (SUCCEEDED(hr))
-    {
-        hr = pEncoder->Initialize(pOutputStream, WICBitmapEncoderNoCache);
-    }
+                CComPtr<IWICBitmapFrameEncode> pEncodeFrame;
+                if (SUCCEEDED(hr))
+                {
+                    hr = pEncoder->CreateNewFrame(&pEncodeFrame, nullptr);
+                }
 
-    CComPtr<IWICBitmapFrameEncode> pEncodeFrame;
-    if (SUCCEEDED(hr))
-    {
-        hr = pEncoder->CreateNewFrame(&pEncodeFrame, nullptr);
-    }
+                if (SUCCEEDED(hr))
+                {
+                    hr = pEncodeFrame->Initialize(nullptr);
+                }
 
-    if (SUCCEEDED(hr))
-    {
-        hr = pEncodeFrame->Initialize(nullptr);
-    }
+                if (SUCCEEDED(hr))
+                {
+                    hr = pEncodeFrame->SetSize(width, height);
+                }
 
-    if (SUCCEEDED(hr))
-    {
-        hr = pEncodeFrame->SetSize(width, height);
-    }
+                if (SUCCEEDED(hr))
+                {
+                    hr = pEncodeFrame->WriteSource(pFrame, nullptr);
+                }
 
-    if (SUCCEEDED(hr))
-    {
-        hr = pEncodeFrame->WriteSource(pFrame, nullptr);
-    }
+                if (SUCCEEDED(hr))
+                {
+                    hr = pEncodeFrame->Commit();
+                }
 
-    if (SUCCEEDED(hr))
-    {
-        hr = pEncodeFrame->Commit();
-    }
+                if (SUCCEEDED(hr))
+                {
+                    hr = pEncoder->Commit();
+                }
 
-    if (SUCCEEDED(hr))
-    {
-        hr = pEncoder->Commit();
-    }
-
-    if (SUCCEEDED(hr))
-    {
-        std::wcout << L"✓ Successfully saved output to: " << outputPath << std::endl;
-    }
-    else
-    {
-        std::wcout << L"✗ Failed to save output image" << std::endl;
+                if (SUCCEEDED(hr))
+                {
+                    std::wcout << L"✓ Successfully saved output to: " << outputPath << std::endl;
+                    success = true;
+                }
+                else
+                {
+                    std::wcout << L"✗ Failed to save output image" << std::endl;
+                }
+            }
+        }
     }
 
     CoUninitialize();
-    return true;
+    return success;
 }
 
 int wmain(int argc, wchar_t* argv[])
 {
+    // Set locale to support wide character printing in the terminal
+    std::locale::global(std::locale(""));
+    std::wcout.imbue(std::locale(""));
+    std::wcerr.imbue(std::locale(""));
+
     std::wcout << L"RW2 Codec Test Program\n" << std::endl;
     std::wcout << L"======================\n" << std::endl;
 

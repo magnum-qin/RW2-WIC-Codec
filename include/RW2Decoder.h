@@ -31,5 +31,5 @@ private:
     IStream* m_pStream;
     CRITICAL_SECTION m_cs;
     bool m_initialized;
-    std::vector<BYTE> m_fileData;
+    std::shared_ptr<std::vector<BYTE>> m_fileData;
 };

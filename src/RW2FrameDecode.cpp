@@ -1,21 +1,22 @@
 #include "../include/RW2FrameDecode.h"
+#include "../include/RW2MetadataQueryReader.h"
 
 extern LONG g_objectCount;
 
-RW2FrameDecode::RW2FrameDecode(const BYTE* pData, size_t dataSize)
+RW2FrameDecode::RW2FrameDecode(std::shared_ptr<std::vector<BYTE>> pData)
     : m_refCount(1)
     , m_processedImage(nullptr)
     , m_width(0)
     , m_height(0)
     , m_processed(false)
     , m_processingFailed(false)
+    , m_rawData(pData)
 {
     InitializeCriticalSection(&m_cs);
     InterlockedIncrement(&g_objectCount);
 
-    if (pData && dataSize > 0)
+    if (m_rawData && !m_rawData->empty())
     {
-        m_rawData.assign(pData, pData + dataSize);
         m_rawProcessor = std::make_unique<LibRaw>();
     }
 }
@@ -66,10 +67,10 @@ STDMETHODIMP_(ULONG) RW2FrameDecode::Release()
 
 HRESULT RW2FrameDecode::ProcessRawData()
 {
-    if (!m_rawProcessor || m_rawData.empty())
+    if (!m_rawProcessor || !m_rawData || m_rawData->empty())
         return E_FAIL;
 
-    int ret = m_rawProcessor->open_buffer(m_rawData.data(), m_rawData.size());
+    int ret = m_rawProcessor->open_buffer(m_rawData->data(), m_rawData->size());
     if (ret != LIBRAW_SUCCESS)
         return WINCODEC_ERR_BADIMAGE;
 
@@ -123,18 +124,33 @@ HRESULT RW2FrameDecode::EnsureProcessed()
         return WINCODEC_ERR_BADIMAGE;
     }
 
-    HRESULT hr = ProcessRawData();
-    if (SUCCEEDED(hr))
+    try
     {
-        m_processed = true;
+        HRESULT hr = ProcessRawData();
+        if (SUCCEEDED(hr))
+        {
+            m_processed = true;
+        }
+        else
+        {
+            m_processingFailed = true;
+        }
+
+        LeaveCriticalSection(&m_cs);
+        return hr;
     }
-    else
+    catch (const std::bad_alloc&)
     {
         m_processingFailed = true;
+        LeaveCriticalSection(&m_cs);
+        return E_OUTOFMEMORY;
     }
-
-    LeaveCriticalSection(&m_cs);
-    return hr;
+    catch (...)
+    {
+        m_processingFailed = true;
+        LeaveCriticalSection(&m_cs);
+        return E_FAIL;
+    }
 }
 
 STDMETHODIMP RW2FrameDecode::GetSize(UINT* puiWidth, UINT* puiHeight)
@@ -142,14 +158,25 @@ STDMETHODIMP RW2FrameDecode::GetSize(UINT* puiWidth, UINT* puiHeight)
     if (puiWidth == nullptr || puiHeight == nullptr)
         return E_INVALIDARG;
 
-    HRESULT hr = EnsureProcessed();
-    if (FAILED(hr))
-        return hr;
+    try
+    {
+        HRESULT hr = EnsureProcessed();
+        if (FAILED(hr))
+            return hr;
 
-    *puiWidth = m_width;
-    *puiHeight = m_height;
+        *puiWidth = m_width;
+        *puiHeight = m_height;
 
-    return S_OK;
+        return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
 }
 
 STDMETHODIMP RW2FrameDecode::GetPixelFormat(WICPixelFormatGUID* pPixelFormat)
@@ -157,10 +184,17 @@ STDMETHODIMP RW2FrameDecode::GetPixelFormat(WICPixelFormatGUID* pPixelFormat)
     if (pPixelFormat == nullptr)
         return E_INVALIDARG;
 
-    // LibRaw outputs RGB, but WIC consumers expect BGR memory layout.
-    // We report BGR and swap R/B channels in CopyPixels.
-    *pPixelFormat = GUID_WICPixelFormat24bppBGR;
-    return S_OK;
+    try
+    {
+        // LibRaw outputs RGB, but WIC consumers expect BGR memory layout.
+        // We report BGR and swap R/B channels in CopyPixels.
+        *pPixelFormat = GUID_WICPixelFormat24bppBGR;
+        return S_OK;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
 }
 
 STDMETHODIMP RW2FrameDecode::GetResolution(double* pDpiX, double* pDpiY)
@@ -168,16 +202,30 @@ STDMETHODIMP RW2FrameDecode::GetResolution(double* pDpiX, double* pDpiY)
     if (pDpiX == nullptr || pDpiY == nullptr)
         return E_INVALIDARG;
 
-    // Default to 72 DPI (could be extracted from EXIF)
-    *pDpiX = 72.0;
-    *pDpiY = 72.0;
+    try
+    {
+        // Default to 72 DPI (could be extracted from EXIF)
+        *pDpiX = 72.0;
+        *pDpiY = 72.0;
 
-    return S_OK;
+        return S_OK;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
 }
 
 STDMETHODIMP RW2FrameDecode::CopyPalette(IWICPalette* pIPalette)
 {
-    return WINCODEC_ERR_PALETTEUNAVAILABLE;
+    try
+    {
+        return WINCODEC_ERR_PALETTEUNAVAILABLE;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
 }
 
 STDMETHODIMP RW2FrameDecode::CopyPixels(const WICRect* prc, UINT cbStride, UINT cbBufferSize, BYTE* pbBuffer)
@@ -185,78 +233,115 @@ STDMETHODIMP RW2FrameDecode::CopyPixels(const WICRect* prc, UINT cbStride, UINT 
     if (pbBuffer == nullptr)
         return E_INVALIDARG;
 
-    HRESULT hr = EnsureProcessed();
-    if (FAILED(hr))
-        return hr;
-
-    if (!m_processedImage)
-        return E_FAIL;
-
-    // Validate processed image format
-    if (m_processedImage->type != LIBRAW_IMAGE_BITMAP)
-        return WINCODEC_ERR_UNSUPPORTEDPIXELFORMAT;
-
-    // LibRaw outputs RGB data
-    UINT bytesPerPixel = 3; // 24bpp RGB
-    UINT imageStride = m_width * bytesPerPixel;
-
-    // Determine copy region
-    WICRect copyRect;
-    if (prc == nullptr)
+    try
     {
-        copyRect.X = 0;
-        copyRect.Y = 0;
-        copyRect.Width = m_width;
-        copyRect.Height = m_height;
-    }
-    else
-    {
-        copyRect = *prc;
-    }
+        HRESULT hr = EnsureProcessed();
+        if (FAILED(hr))
+            return hr;
 
-    // Validate rectangle
-    if (copyRect.X < 0 || copyRect.Y < 0 ||
-        copyRect.X + copyRect.Width > static_cast<INT>(m_width) ||
-        copyRect.Y + copyRect.Height > static_cast<INT>(m_height))
-    {
-        return E_INVALIDARG;
-    }
+        if (!m_processedImage)
+            return E_FAIL;
 
-    // Validate stride
-    UINT minStride = copyRect.Width * bytesPerPixel;
-    if (cbStride < minStride)
-        return E_INVALIDARG;
+        // Validate processed image format
+        if (m_processedImage->type != LIBRAW_IMAGE_BITMAP)
+            return WINCODEC_ERR_UNSUPPORTEDPIXELFORMAT;
 
-    // Validate buffer size (use 64-bit to prevent overflow)
-    ULONGLONG requiredSize = (ULONGLONG)cbStride * copyRect.Height;
-    if (cbBufferSize < requiredSize)
-        return E_INVALIDARG;
+        // LibRaw outputs RGB data
+        UINT bytesPerPixel = 3; // 24bpp RGB
+        UINT imageStride = m_width * bytesPerPixel;
 
-    // Copy pixel data, converting LibRaw RGB -> WIC BGR
-    BYTE* pSrc = m_processedImage->data + (copyRect.Y * imageStride) + (copyRect.X * bytesPerPixel);
-    BYTE* pDst = pbBuffer;
-
-    for (INT row = 0; row < copyRect.Height; ++row)
-    {
-        // Swap R and B channels: LibRaw gives R,G,B but WIC 24bppBGR expects B,G,R
-        for (INT col = 0; col < copyRect.Width; ++col)
+        // Determine copy region
+        WICRect copyRect;
+        if (prc == nullptr)
         {
-            BYTE* srcPixel = pSrc + col * bytesPerPixel;
-            BYTE* dstPixel = pDst + col * bytesPerPixel;
-            dstPixel[0] = srcPixel[2]; // B <- R
-            dstPixel[1] = srcPixel[1]; // G <- G
-            dstPixel[2] = srcPixel[0]; // R <- B
+            copyRect.X = 0;
+            copyRect.Y = 0;
+            copyRect.Width = m_width;
+            copyRect.Height = m_height;
         }
-        pSrc += imageStride;
-        pDst += cbStride;
-    }
+        else
+        {
+            copyRect = *prc;
+        }
 
-    return S_OK;
+        // Validate rectangle
+        if (copyRect.X < 0 || copyRect.Y < 0 ||
+            copyRect.X + copyRect.Width > static_cast<INT>(m_width) ||
+            copyRect.Y + copyRect.Height > static_cast<INT>(m_height))
+        {
+            return E_INVALIDARG;
+        }
+
+        // Validate stride
+        UINT minStride = copyRect.Width * bytesPerPixel;
+        if (cbStride < minStride)
+            return E_INVALIDARG;
+
+        // WIC standard: last row only needs minStride bytes, not full cbStride
+        ULONGLONG requiredSize = (copyRect.Height > 1)
+            ? (ULONGLONG)cbStride * (copyRect.Height - 1) + minStride
+            : (ULONGLONG)minStride;
+        if (cbBufferSize < requiredSize)
+            return E_INVALIDARG;
+
+        // Copy pixel data, converting LibRaw RGB -> WIC BGR
+        BYTE* pSrc = m_processedImage->data + (copyRect.Y * imageStride) + (copyRect.X * bytesPerPixel);
+        BYTE* pDst = pbBuffer;
+
+        for (INT row = 0; row < copyRect.Height; ++row)
+        {
+            // Swap R and B channels: LibRaw gives R,G,B but WIC 24bppBGR expects B,G,R
+            for (INT col = 0; col < copyRect.Width; ++col)
+            {
+                BYTE* srcPixel = pSrc + col * bytesPerPixel;
+                BYTE* dstPixel = pDst + col * bytesPerPixel;
+                dstPixel[0] = srcPixel[2]; // B <- R
+                dstPixel[1] = srcPixel[1]; // G <- G
+                dstPixel[2] = srcPixel[0]; // R <- B
+            }
+            pSrc += imageStride;
+            pDst += cbStride;
+        }
+
+        return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
 }
 
 STDMETHODIMP RW2FrameDecode::GetMetadataQueryReader(IWICMetadataQueryReader** ppIMetadataQueryReader)
 {
-    return E_NOTIMPL; // Could be implemented to expose EXIF metadata
+    if (ppIMetadataQueryReader == nullptr)
+        return E_INVALIDARG;
+
+    *ppIMetadataQueryReader = nullptr;
+
+    try
+    {
+        RW2MetadataQueryReader* pReader = new (std::nothrow) RW2MetadataQueryReader(m_rawData);
+        if (pReader == nullptr)
+            return E_OUTOFMEMORY;
+
+        HRESULT hr = pReader->QueryInterface(IID_IWICMetadataQueryReader,
+            (void**)ppIMetadataQueryReader);
+        pReader->Release();
+
+        return hr;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
 }
 
 STDMETHODIMP RW2FrameDecode::GetColorContexts(UINT cCount, IWICColorContext** ppIColorContexts, UINT* pcActualCount)
@@ -264,11 +349,41 @@ STDMETHODIMP RW2FrameDecode::GetColorContexts(UINT cCount, IWICColorContext** pp
     if (pcActualCount == nullptr)
         return E_INVALIDARG;
 
-    *pcActualCount = 0;
-    return S_OK;
+    *pcActualCount = 1; // We provide one sRGB color context
+
+    if (cCount == 0 || ppIColorContexts == nullptr)
+        return S_OK; // Caller is just querying the count
+
+    try
+    {
+        IWICImagingFactory* pFactory = nullptr;
+        HRESULT hr = CoCreateInstance(CLSID_WICImagingFactory, nullptr,
+            CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pFactory));
+        if (SUCCEEDED(hr))
+        {
+            hr = pFactory->CreateColorContext(&ppIColorContexts[0]);
+            if (SUCCEEDED(hr))
+            {
+                hr = ppIColorContexts[0]->InitializeFromExifColorSpace(1); // 1 = sRGB
+            }
+            pFactory->Release();
+        }
+        return hr;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
 }
 
 STDMETHODIMP RW2FrameDecode::GetThumbnail(IWICBitmapSource** ppIThumbnail)
 {
-    return WINCODEC_ERR_CODECNOTHUMBNAIL;
+    try
+    {
+        return WINCODEC_ERR_CODECNOTHUMBNAIL;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
 }

@@ -13,6 +13,7 @@ add_library(RW2Codec SHARED
     src/ClassFactory.cpp
     src/RW2Decoder.cpp
     src/RW2FrameDecode.cpp
+    src/RW2MetadataQueryReader.cpp
     src/Registration.cpp
     src/Guids.cpp
     src/Utils.cpp
@@ -30,6 +31,13 @@ target_link_libraries(RW2Codec PRIVATE
     ole32
     oleaut32
 )
+
+if(MSVC)
+    target_link_options(RW2Codec PRIVATE
+        "/DELAYLOAD:raw.dll"
+        "delayimp.lib"
+    )
+endif()
 
 # Test program
 add_executable(TestDecoder

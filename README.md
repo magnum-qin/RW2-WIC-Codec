@@ -1,253 +1,159 @@
 # RW2 WIC Codec - Panasonic RAW Format Support for Windows
 
-A Windows Imaging Component (WIC) codec that enables native support for Panasonic RW2 (RAW) files in Windows.
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20(x64)-blue.svg)]()
+[![Language](https://img.shields.io/badge/language-C%2B%2B17-orange.svg)]()
 
-## Features
+A high-performance Windows Imaging Component (WIC) codec that enables native system-wide support for Panasonic `.rw2` RAW files on Windows 10 and 11.
 
-✅ **System-wide support** - Once installed, RW2 files work everywhere:
-- Windows File Explorer (thumbnails)
-- Windows Photos app
-- Microsoft Paint
-- Any application using WIC (Windows Imaging Component)
+**[English](README.md) | [简体中文](README_CN.md) | [日本語](README_JA.md)**
 
-✅ **High-quality RAW processing** - Uses LibRaw for professional-grade image processing:
-- Camera white balance
-- sRGB color space
-- AHD interpolation (high quality)
-- Auto brightness adjustment
+---
 
-✅ **Native integration** - Works like built-in image formats, no separate viewer needed
+## 📷 Features
 
-## Supported Cameras
+- ✅ **Native System Integration**
+  - View `.rw2` thumbnails directly in Windows File Explorer.
+  - Open and zoom `.rw2` images natively in the Windows Photos app.
+  - Edit RAW files directly in MS Paint, Snipping Tool, or Microsoft Office.
+  - Full compatibility with any application utilizing the Windows WIC API.
+- 🎨 **Professional RAW Processing**
+  - Backed by the professional-grade `LibRaw` engine.
+  - Respects in-camera white balance configurations.
+  - Maps colors accurately to the standard sRGB color space.
+  - Employs PPG interpolation (3x faster than standard AHD, while maintaining excellent image fidelity).
+  - Automatically applies brightness and exposure adjustments.
+- 🏷️ **Comprehensive EXIF Metadata Support**
+  - Fully implements the WIC standard `IWICMetadataQueryReader` interface.
+  - Native extraction of core shooting attributes: Camera Make, Model, Exposure Time, F-Number, ISO Speed, Focal Length, DateTimeOriginal, Orientation, and Image Dimensions.
+  - Built-in ISO overflow protection (automatically maps ISO values larger than 65,535 to `VT_UI4` instead of `VT_UI2` to avoid truncation on modern high-ISO cameras).
+- 🚀 **Performance & Memory Optimization**
+  - Shared-pointer referencing model (`shared_ptr<vector<BYTE>>`) prevents redundant file buffer copies between the WIC Decoder and WIC Frame objects.
+  - Fast embedded JPEG preview extraction (`GetPreview`) enables photos to open in milliseconds.
+- 🔒 **Industrial-Grade Stability & Security**
+  - **Dynamic Delay Loading & Isolation**: Deploys dynamic delay loading (`/DELAYLOAD:raw.dll`) combined with a thread-safe `std::call_once` loader helper. Loads all dependencies (`zlib1.dll`, `lcms2-2.dll`, `raw.dll`) locally using `LOAD_WITH_ALTERED_SEARCH_PATH`. **Never alters process-wide DLL search directories** (avoids calling global path functions like `SetDefaultDllDirectories` in `DllMain`), completely eliminating DLL hijacking and loader deadlock risks in host processes (like `explorer.exe`).
+  - **COM Exception Barrier**: All COM boundary methods are wrapped in rigorous `try/catch` exception blocks. Safely converts standard library exceptions (e.g. `std::bad_alloc` to `E_OUTOFMEMORY`) and unknown errors to `E_FAIL` to protect host processes from crashes caused by corrupted RAW files.
+  - **Panasonic-Specific Matching**: Custom registry pattern checks only Panasonic-specific signatures (`II` + `0x0055` / `MM` + `0x0055`), preventing registration conflicts with standard TIFF or other camera manufacturers' RAW formats (like `.arw`, `.nef`, `.cr2`).
 
-This codec supports RW2 files from Panasonic Lumix cameras, including:
-- Lumix S series (S1, S1R, S1H, S5, etc.)
-- Lumix G series (GH5, GH6, G9, etc.)
-- Lumix GX series
-- And other Panasonic cameras that produce RW2 files
+---
 
-## Installation
+## 💻 System Requirements
 
-### Prerequisites
+- **Operating System**: Windows 10 or Windows 11 (64-bit / x64 only).
+- **Privileges**: Administrator privileges are required to register or unregister the COM component.
+- **Development Prerequisites (Source Builds)**: Visual Studio 2022 / CMake 3.15+ / vcpkg package manager.
 
-1. **Windows 10 or Windows 11** (64-bit)
-2. **Administrator privileges** for installation
-3. **Visual Studio 2019 or newer** (for building from source)
-4. **LibRaw library** - Install via vcpkg:
+---
+
+## 📥 Installation
+
+### Method 1: Using Precompiled Releases (Recommended)
+
+1. Download the latest release archive from the GitHub Releases page.
+2. Extract the files to a directory of your choice (e.g., `C:\Program Files\RW2Codec`).
+3. Right-click `install.bat` and select **"Run as administrator"**.
+4. You should see a registration success prompt.
+5. Restart File Explorer (or your PC) for changes to take effect.
+
+### Method 2: Building from Source
+
+For detailed compilation and dependencies setup, refer to [BUILD_GUIDE_CN.md](BUILD_GUIDE_CN.md).
+
+**Quick Steps**:
+1. Install LibRaw via vcpkg:
    ```batch
    vcpkg install libraw:x64-windows
    ```
-
-### Building from Source
-
-1. Clone or download this repository
-
-2. Install dependencies:
+2. Build the project using the automatic build script:
    ```batch
-   vcpkg install libraw:x64-windows
+   setup_and_build.bat
    ```
+3. Register the codec DLL:
+   Navigate to `build\Release`, right-click `install.bat` and run as administrator.
 
-3. Configure with CMake:
-   ```batch
-   mkdir build
-   cd build
-   cmake .. -DCMAKE_TOOLCHAIN_FILE=[path to vcpkg]/scripts/buildsystems/vcpkg.cmake
-   ```
+---
 
-4. Build the project:
-   ```batch
-   cmake --build . --config Release
-   ```
+## 🗑️ Uninstallation
 
-### Installing the Codec
+1. Navigate to the directory containing your codec installation.
+2. Right-click `uninstall.bat` and select **"Run as administrator"**.
+3. The script will clean up all registry keys and association entries.
 
-1. Navigate to the `build/Release` directory (or wherever `RW2Codec.dll` is located)
+---
 
-2. Copy `install.bat` to the same directory as `RW2Codec.dll`
+## 🧪 Testing
 
-3. **Right-click `install.bat`** and select **"Run as administrator"**
+We provide dedicated testing programs to verify codec status and capabilities:
 
-4. You should see a success message
+- **Core Decoder Verification**:
+  ```batch
+  TestDecoder.exe C:\Path\To\your_photo.rw2
+  ```
+  Verifies WIC loading, prints resolution/DPI, and writes a losslessly transcoded `.bmp` replica for visual verification.
+  
+- **EXIF Metadata Verification**:
+  ```batch
+  TestExif.exe C:\Path\To\your_photo.rw2
+  ```
+  Verifies WIC query reader path matching and prints camera parameters retrieved from the RAW file headers.
 
-5. The codec is now installed! You may need to restart File Explorer or your applications for changes to take effect.
+---
 
-### Verifying Installation
-
-1. Open File Explorer and navigate to a folder with RW2 files
-2. Switch to thumbnail view - you should see previews of your RW2 images
-3. Double-click an RW2 file - it should open in Windows Photos app
-
-## Uninstalling
-
-1. Navigate to the directory containing `uninstall.bat` and `RW2Codec.dll`
-2. **Right-click `uninstall.bat`** and select **"Run as administrator"**
-3. The codec will be removed from Windows
-
-## Testing
-
-A test program is included to verify the codec works correctly:
-
-```batch
-TestDecoder.exe path\to\your\file.rw2
-```
-
-This will:
-- Load the RW2 file using WIC
-- Display image information (dimensions, DPI, etc.)
-- Save a BMP copy for visual verification
-
-## Project Structure
+## 📁 Repository Structure
 
 ```
 RW2Codec/
-├── CMakeLists.txt              # Build configuration
-├── RW2Codec.def                # DLL exports
-├── README.md                   # This file
+├── CMakeLists.txt              # CMake build configuration
+├── RW2Codec.def                # Module definition (DLL exports)
+├── README.md                   # English Readme (This file)
+├── README_CN.md                # Chinese Readme
+├── README_JA.md                # Japanese Readme
 ├── include/
-│   ├── Common.h                # GUID definitions and common headers
-│   ├── ClassFactory.h          # COM class factory
-│   ├── RW2Decoder.h            # Main decoder interface
-│   └── RW2FrameDecode.h        # Frame decoder interface
+│   ├── Common.h                # COM GUIDs and headers
+│   ├── ClassFactory.h          # COM IClassFactory
+│   ├── RW2Decoder.h            # IWICBitmapDecoder
+│   ├── RW2FrameDecode.h        # IWICBitmapFrameDecode
+│   └── RW2MetadataQueryReader.h# IWICMetadataQueryReader
 ├── src/
-│   ├── DllMain.cpp             # DLL entry point
-│   ├── ClassFactory.cpp        # COM factory implementation
-│   ├── RW2Decoder.cpp          # IWICBitmapDecoder implementation
-│   ├── RW2FrameDecode.cpp      # IWICBitmapFrameDecode + LibRaw integration
-│   ├── Registration.cpp        # Registry operations
-│   └── Utils.cpp               # Utility functions
+│   ├── DllMain.cpp             # DLL initialization
+│   ├── ClassFactory.cpp        # Factory implementation
+│   ├── RW2Decoder.cpp          # WIC Decoder logic
+│   ├── RW2FrameDecode.cpp      # WIC Frame decoding & LibRaw processing
+│   ├── RW2MetadataQueryReader.cpp # EXIF metadata parser
+│   ├── Registration.cpp        # Registry COM registration
+│   └── Utils.cpp               # Safe DLL loading implementation
 ├── tests/
-│   └── TestDecoder.cpp         # Test application
+│   ├── TestDecoder.cpp         # Transcoding verification test
+│   └── TestPerf.cpp            # Performance profiling test
 └── scripts/
-    ├── install.bat             # Installation script
-    └── uninstall.bat           # Uninstallation script
+    ├── install.bat             # COM registration script
+    └── uninstall.bat           # COM unregistration script
 ```
 
-## Technical Details
+---
 
-### Architecture
+## 📄 License
 
-```
-RW2 File → WIC Codec DLL → LibRaw Processing → RGB Bitmap → Windows Apps
-                ↓
-           COM Registration
-                ↓
-        System-wide availability
-```
+- This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+- **LibRaw** is licensed under LGPL 2.1 or CDDL 1.0. Please respect its licensing terms during distribution.
 
-### WIC Interfaces Implemented
+---
 
-- **IWICBitmapDecoder** - Main decoder interface
-  - File validation and initialization
-  - Frame enumeration
-  - Container format identification
-
-- **IWICBitmapFrameDecode** - Frame decoding interface
-  - Pixel data extraction via LibRaw
-  - Size and format information
-  - RGB conversion (24bpp)
-
-### LibRaw Processing Parameters
-
-The codec uses the following LibRaw settings for optimal quality:
-- `use_camera_wb = 1` - Camera white balance
-- `output_color = 1` - sRGB color space
-- `output_bps = 8` - 8-bit per channel
-- `user_qual = 3` - AHD interpolation (high quality)
-- `no_auto_bright = 0` - Auto brightness enabled
-- `use_fuji_rotate = 1` - Auto rotation enabled
-
-### Performance
-
-- **Output format**: 24bpp RGB (8 bits per channel)
-- **Typical load time**: 2-3 seconds for 24MP images
-- **Memory usage**: ~200MB for processing a single 24MP image
-
-## Troubleshooting
-
-### Codec doesn't register
-
-- Make sure you're running `install.bat` as administrator
-- Check that `RW2Codec.dll` is in the same directory as `install.bat`
-- Verify that all dependencies (LibRaw DLLs) are present
-
-### RW2 files still don't show thumbnails
-
-- Restart File Explorer (Task Manager → Restart "Windows Explorer")
-- Clear thumbnail cache: Delete `%LocalAppData%\Microsoft\Windows\Explorer\thumbcache_*.db`
-- Restart your computer
-
-### Some RW2 files don't open
-
-- LibRaw may not support all camera models/firmware versions
-- Try updating to the latest LibRaw version
-- Check LibRaw's supported camera list
-
-### Performance is slow
-
-- RAW processing is computationally intensive
-- Large files (>24MP) will take longer
-- Consider reducing preview quality in applications if needed
-
-## Development
-
-### Building for Debug
-
-```batch
-cmake --build . --config Debug
-```
-
-### Running Tests
-
-```batch
-cd build/Release
-TestDecoder.exe C:\path\to\test.rw2
-```
-
-### Debugging
-
-1. Build in Debug configuration
-2. Attach Visual Studio debugger to an application using WIC (e.g., explorer.exe)
-3. Load an RW2 file to trigger breakpoints
-
-## Future Enhancements
-
-Potential improvements for future versions:
-
-- [ ] Extract embedded JPEG thumbnails for faster preview
-- [ ] Support EXIF metadata via IWICMetadataQueryReader
-- [ ] Support additional Panasonic formats (RAW, RW2L)
-- [ ] Add configurable color processing options
-- [ ] Support other RAW formats (CR2, NEF, ARW, etc.)
-- [ ] Implement thumbnail extraction from decoder
-
-## License
-
-This project uses:
-- **LibRaw** - Licensed under LGPL 2.1 or CDDL 1.0
-- **Windows SDK** - Microsoft Software License
-
-Please ensure compliance with LibRaw licensing when distributing.
-
-## Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Test thoroughly with various RW2 files
-4. Submit a pull request
-
-## Credits
+## 🙏 Credits
 
 - **LibRaw** - https://www.libraw.org/
 - **Windows Imaging Component (WIC)** - Microsoft
 
-## Support
-
-For issues or questions:
-1. Check the Troubleshooting section above
-2. Review LibRaw documentation for RAW format support
-3. Open an issue on GitHub with sample files and error details
-
 ---
 
-**Enjoy native RW2 support on Windows!** 📷✨
+## 🌐 Quick Translations / 语言概要
+
+### 简体中文概要
+**RW2 WIC Codec** 是一款为 Windows 10/11 系统提供松下 `.rw2` RAW 格式原生支持的编解码器。安装后，您可以在资源管理器中直接预览缩略图，在系统照片应用中双击打开，以及在画图或 Office 中直接导入照片。本编解码插件深度实现了 WIC 的 `IWICMetadataQueryReader` 接口以支持读取光圈、快门、ISO 等 EXIF 元数据，并采用延迟加载隔离机制，保证宿主程序运行的安全与稳定。
+- **安装**：解压发行包，右键 `install.bat` 选择 **以管理员身份运行**。
+- **卸载**：右键 `uninstall.bat` 选择 **以管理员身份运行**。
+
+### 日本語概要
+**RW2 WIC Codec** は、パナソニック製カメラのRAW画像（`.rw2`）ファイルを Windows 10/11 システム全体でネイティブにサポートするWICコーデックです。インストールするだけで、エクスプローラーでのサムネイル表示、フォトアプリでのダイレクト閲覧、ペイントやOfficeでの読み込みが可能になります。WIC標準の `IWICMetadataQueryReader` インターフェースによるEXIF情報の表示や、ホストプロセスを汚染しない安全な遅延読み込み（DLLセーフロード）設計に対応しています。
+- **インストール**：アーカイブを展開し、`install.bat` を右クリックして **「管理者として実行」** を選択します。
+- **アンインストール**：`uninstall.bat` を右クリックして **「管理者として実行」** を選択します。

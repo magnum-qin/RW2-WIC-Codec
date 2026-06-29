@@ -32,3 +32,4 @@ HRESULT RegisterCodec();
 HRESULT UnregisterCodec();
 HRESULT CreateRegistryKey(HKEY hKeyParent, LPCWSTR lpszKeyName, HKEY* phKey);
 HRESULT SetRegistryKeyValue(HKEY hKey, LPCWSTR lpszValueName, LPCWSTR lpszValue);
+HRESULT EnsureDependenciesLoaded();

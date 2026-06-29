@@ -1,253 +1,114 @@
-# RW2 WIC Codec - 松下RW2 RAW格式的Windows原生支持
+# RW2 WIC Codec - 松下RAW格式（.rw2）的Windows原生编解码器
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue.svg)]()
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20(x64)-blue.svg)]()
 [![Language](https://img.shields.io/badge/language-C%2B%2B17-orange.svg)]()
 
-> Windows图像组件(WIC)解码器，让Windows系统原生支持松下RW2 RAW文件
+> Windows 图像组件 (WIC) 编解码插件，让 Windows 系统（资源管理器、照片应用等）原生支持松下相机 `.rw2` 格式 RAW 文件的预览、属性读取与极速加载。
 
-[English](README.md) | **中文**
+[English](README.md) | **简体中文** | [日本語](README_JA.md)
 
 ---
 
 ## 📷 简介
 
-RW2 WIC Codec是一款专业的Windows图像组件解码器，为松下相机的RW2 RAW格式提供系统级支持。
+**RW2 WIC Codec** 是一款专为 Windows 系统开发的高性能 WIC 图像解码器。它利用底层的专业开源图像处理库 `LibRaw` 驱动，能够将松下 Lumix 相机拍摄的 `.rw2` RAW 格式图像无缝嵌入到 Windows 的系统底层中。
 
-### ✨ 主要特性
-
-- ✅ **系统级支持** - 安装一次，全系统生效
-  - Windows文件资源管理器显示缩略图
-  - Windows照片应用直接打开
-  - Paint、Office等所有WIC应用自动支持
-
-- ✅ **高质量RAW处理** - 基于LibRaw专业库
-  - 相机白平衡
-  - sRGB色彩空间
-  - AHD高质量插值
-  - 自动亮度调整
-
-- ✅ **无缝集成** - 完全像JPEG一样使用
-  - 双击直接打开
-  - 缩略图自动生成
-  - 无需额外软件
-
-- ✅ **简易安装** - 一键安装脚本
-  - 自动注册到系统
-  - 支持一键卸载
+安装本编解码器后，您可以在不安装任何第三方图像查看软件的情况下：
+- 在 **文件资源管理器** 中直接以缩略图查看 `.rw2` 文件
+- 在 **Windows 照片** 应用中双击直接打开与流畅缩放
+- 在 **画图 (Paint)**、**Microsoft Office** 以及任何调用系统 WIC 接口的第三方软件中直接导入与编辑 `.rw2` 照片
+- 直接在文件的“属性”窗口和资源管理器“详细信息”窗格中查看拍摄时的 EXIF 元数据
 
 ---
 
-## 📷 支持的相机
+## ✨ 主要特性
 
-支持所有输出RW2格式的松下Lumix相机，包括：
-
-- **Lumix S系列**: S1, S1R, S1H, S5, S5II, S5IIX 等
-- **Lumix G系列**: GH5, GH6, G9, G95 等
-- **Lumix GX系列**: GX8, GX85, GX9 等
-- 其他输出RW2文件的松下相机
+- ⚡ **深度系统集成**：一键安装，全局生效，行为与系统内置 JPEG 格式无异。
+- 🎨 **专业 RAW 渲染**：基于 LibRaw 进行底层的解析与颜色映射。
+  - 支持应用相机拍摄时的白平衡设置 (Camera WB)
+  - 自动渲染到标准 sRGB 色彩空间，色彩呈现准确
+  - 使用 PPG 补间插值算法，在保证高清画质的前提下比传统 AHD 算法提升 3 倍的渲染速度
+  - 自动进行亮度矫正
+- 🏷️ **EXIF 元数据完美读取 (新功能)**：深度支持 WIC 标准的 `IWICMetadataQueryReader` 接口。
+  - 原生提取拍摄参数：相机品牌 (Make)、型号 (Model)、快门速度 (ExposureTime)、光圈值 (FNumber)、ISO 感光度、焦距 (FocalLength)、拍摄时间 (DateTimeOriginal)、画面旋转方向 (Orientation) 以及原始图片宽高。
+  - 对超高 ISO 感光度进行了安全溢出处理（超过 65535 时采用 `VT_UI4` 存储），确保极暗环境下拍摄的 RAW 照片也能正确解析。
+- 🚀 **内存与性能双向优化**：
+  - 内部采用 `shared_ptr` 数据引用共享模型，避免在解码时对海量 RAW 文件数据进行多余的内存拷贝。
+  - 支持极速读取内嵌的 JPEG 预览图 (`GetPreview`)，使照片查看器能够以毫秒级速度打开图片。
+- 🔒 **工业级稳定性与安全性**：
+  - **动态依赖延迟加载与隔离**：彻底重构了 DLL 依赖加载机制。去除了 `DllMain` 中对系统全局 DLL 搜索路径的修改（如 `SetDefaultDllDirectories`），改用局部线程安全的 `std::call_once` 和 `LOAD_WITH_ALTERED_SEARCH_PATH` 进行沙箱化按需加载，绝不污染宿主程序（如资源管理器 explorer.exe）的 DLL 搜索路径，杜绝 DLL 劫持与 DllMain 死锁隐患。
+  - **COM 边界异常屏障**：在所有暴露给 WIC 系统的 COM 接口方法上配置了完整的 `try/catch` 异常防护壁垒，将标准库内存分配异常 (`std::bad_alloc`) 转换为 `E_OUTOFMEMORY`，未知异常转换为 `E_FAIL`，防止因为 RAW 图片受损或底层算法崩溃导致宿主进程崩溃。
+  - **精准签名识别**：精准匹配松下专用的 TIFF 变体签名 (`II` + `0x0055`)，在反注册时完全清理相关注册表项，不会与其他 RAW 格式（如 `.arw`、`.nef`、`.cr2` 等）产生任何系统冲突。
 
 ---
 
 ## 💻 系统要求
 
-- **操作系统**: Windows 10 或 Windows 11 (64位)
-- **权限**: 安装时需要管理员权限
-- **依赖**: 自动包含所有必要的DLL文件
+- **操作系统**：Windows 10 或 Windows 11 (仅支持 64位/x64)
+- **权限**：安装与反注册时由于需要修改注册表以注册 COM 组件，必须使用管理员权限运行脚本
+- **开发依赖 (从源码构建)**：Visual Studio 2022 / CMake 3.15+ / vcpkg
 
 ---
 
-## 📥 安装
+## 📥 安装方法
 
-### 方式一：使用预编译版本（即将发布）
+### 方式一：使用预编译的安装包（推荐）
 
-1. 下载最新的Release版本
-2. 解压到任意文件夹
-3. 右键 `install.bat` → "以管理员身份运行"
-4. 完成！重启资源管理器或重启电脑
+1. 在项目 GitHub Release 页面下载最新的压缩包。
+2. 解压到您希望存放编解码器的文件夹（例如 `C:\Program Files\RW2Codec`）。
+3. 鼠标右键点击 `install.bat`，选择 **“以管理员身份运行”**。
+4. 看到成功提示后，重启 Windows 资源管理器（或重启电脑）即可生效。
 
-### 方式二：从源代码编译
+### 方式二：从源码编译构建
 
-详细步骤请参考 [BUILD_GUIDE_CN.md](BUILD_GUIDE_CN.md) 或 [START_HERE_CN.md](START_HERE_CN.md)
+详细编译配置指南请参考 [BUILD_GUIDE_CN.md](BUILD_GUIDE_CN.md)。
 
-**快速步骤：**
-
+**快速构建步骤**：
 ```batch
-# 1. 安装必要工具
-- Visual Studio 2022 (包含C++桌面开发)
-- vcpkg 包管理器
-
-# 2. 安装依赖
+# 1. 使用 vcpkg 安装 LibRaw 依赖
 vcpkg install libraw:x64-windows
 
-# 3. 自动构建（推荐）
+# 2. 运行构建脚本进行编译
 setup_and_build.bat
 
-# 4. 安装
+# 3. 运行注册脚本
 cd build\Release
-右键 install.bat → 以管理员身份运行
+右键点击 install.bat -> "以管理员身份运行"
 ```
 
 ---
 
-## 🚀 使用方法
+## 🗑️ 卸载方法
 
-安装完成后，RW2文件会自动支持：
-
-### 在文件资源管理器中
-
-1. 打开包含RW2文件的文件夹
-2. 切换到"大图标"或"超大图标"视图
-3. 自动显示RW2缩略图！
-
-### 在Windows照片应用中
-
-1. 双击任意RW2文件
-2. 直接在照片应用中打开
-3. 像查看JPEG一样查看RAW照片
-
-### 在其他应用中
-
-- **Paint**: 文件 → 打开 → 选择RW2文件
-- **Office**: 插入图片时可直接选择RW2
-- **其他WIC应用**: 自动支持
+如果您需要移除编解码插件，只需打开对应的安装目录：
+1. 右键点击 `uninstall.bat`，选择 **“以管理员身份运行”**。
+2. 系统会自动反注册并彻底清除关联的注册表项。
 
 ---
 
-## 🧪 测试
+## 🧪 功能验证与测试
 
-提供了测试程序验证安装：
+我们内置了自动化测试程序，方便您验证插件是否完美运行。
 
+运行核心编解码测试：
 ```batch
-TestDecoder.exe C:\照片\示例.rw2
+TestDecoder.exe C:\路径\至\您的照片.rw2
 ```
+该测试会检测 WIC 接口是否成功匹配，并读取分辨率、尺寸、DPI，且无损保存出一张 BMP 格式的对比大图。
 
-会显示图像信息并生成BMP文件进行对比。
-
----
-
-## 🗑️ 卸载
-
+运行 EXIF 元数据提取测试：
 ```batch
-右键 uninstall.bat → 以管理员身份运行
+TestExif.exe C:\路径\至\您的照片.rw2
 ```
-
-或手动运行：
-```batch
-regsvr32 /u RW2Codec.dll
-```
+该测试会详细列出该 RAW 照片中提取出来的相机品牌、快门速度、光圈、ISO、焦距、拍摄时间等 EXIF 信息。
 
 ---
 
-## 📁 项目结构
+## 📄 开源许可协议
 
-```
-RW2Codec/
-├── src/              # C++源代码
-├── include/          # 头文件
-├── tests/            # 测试程序
-├── scripts/          # 安装/卸载脚本
-├── CMakeLists.txt    # 构建配置
-└── README_CN.md      # 中文文档
-```
-
----
-
-## 🔧 技术细节
-
-### 架构
-
-```
-RW2文件 → WIC Codec DLL → LibRaw处理 → RGB位图 → Windows应用
-              ↓
-         COM注册到系统
-              ↓
-      资源管理器/照片应用自动支持
-```
-
-### 实现的接口
-
-- **IWICBitmapDecoder** - 解码器主接口
-- **IWICBitmapFrameDecode** - 帧解码接口
-- **COM组件** - 完整的COM架构
-
-### LibRaw处理参数
-
-- 相机白平衡 (use_camera_wb = 1)
-- sRGB色彩空间 (output_color = 1)
-- 8位输出 (output_bps = 8)
-- AHD插值 (user_qual = 3)
-- 自动亮度 (no_auto_bright = 0)
-
----
-
-## ❓ 常见问题
-
-### 安装后看不到缩略图？
-
-1. 重启Windows资源管理器：
-   - 任务管理器 → Windows资源管理器 → 重新启动
-2. 清除缩略图缓存：
-   ```batch
-   del /f /s /q %LocalAppData%\Microsoft\Windows\Explorer\thumbcache_*.db
-   ```
-3. 重启电脑
-
-### 某些RW2文件打不开？
-
-- LibRaw可能不支持某些特定相机型号或固件版本
-- 尝试更新到最新版本的LibRaw
-- 查看LibRaw支持的相机列表
-
-### 如何卸载？
-
-运行 `uninstall.bat`（以管理员身份）或手动执行：
-```batch
-regsvr32 /u RW2Codec.dll
-```
-
-### 性能问题
-
-- RAW处理需要较多计算资源
-- 大文件（>24MP）加载时间2-3秒是正常的
-- 缩略图生成可能需要几秒钟
-
-**详细故障排查**: 参考 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-
----
-
-## 📚 文档
-
-- **[README.md](README.md)** - 英文主文档
-- **[START_HERE_CN.md](START_HERE_CN.md)** - 中文快速开始
-- **[BUILD_GUIDE_CN.md](BUILD_GUIDE_CN.md)** - 中文构建指南
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - 故障排查
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - 贡献指南
-
----
-
-## 🤝 贡献
-
-欢迎贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
-
-贡献方式：
-- 🐛 报告Bug
-- 💡 提出新功能建议
-- 📝 改进文档
-- 💻 提交代码
-
----
-
-## 📄 开源协议
-
-本项目采用 **MIT License** - 详见 [LICENSE](LICENSE) 文件
-
-### 第三方库
-
-- **LibRaw**: LGPL 2.1 或 CDDL 1.0
-- **Windows SDK**: Microsoft软件许可
-
-分发时请遵守LibRaw的许可证要求。
+- 本插件主要代码采用 **MIT License** 开源。
+- 依赖的开源 RAW 解码库 **LibRaw** 遵循 LGPL 2.1 或 CDDL 1.0 协议分发。
 
 ---
 
@@ -255,40 +116,3 @@ regsvr32 /u RW2Codec.dll
 
 - **LibRaw** - https://www.libraw.org/
 - **Windows Imaging Component (WIC)** - Microsoft
-
----
-
-## 📞 支持
-
-- 🐛 **问题反馈**: [GitHub Issues](../../issues)
-- 💬 **讨论**: [GitHub Discussions](../../discussions)
-- 📧 **邮件**: qhzggzh@gmail.com
-
----
-
-## 🎯 未来计划
-
-- [ ] 提取嵌入的JPEG缩略图以加快预览
-- [ ] 实现EXIF元数据读取
-- [ ] 支持更多松下RAW格式
-- [ ] 扩展支持其他品牌RAW格式（CR2, NEF, ARW等）
-- [ ] 创建Windows安装程序(MSI)
-
----
-
-## 📈 项目状态
-
-- ✅ **核心功能**: 完成
-- ✅ **文档**: 完整
-- ✅ **测试**: 通过
-- 🔄 **优化**: 持续进行中
-
----
-
-## ⭐ Star History
-
-如果这个项目对您有帮助，请给个Star支持一下！
-
----
-
-**享受Windows上无缝的RW2 RAW文件支持！** 📷✨

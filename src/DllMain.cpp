@@ -1,5 +1,6 @@
 #include "../include/Common.h"
 #include "../include/ClassFactory.h"
+#include <new>
 
 LONG g_serverLocks = 0;
 LONG g_objectCount = 0;
@@ -12,20 +13,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     case DLL_PROCESS_ATTACH:
         g_hModule = hModule;
         DisableThreadLibraryCalls(hModule);
-
-        // Add our DLL's directory to the DLL search path so that
-        // dependent DLLs (raw.dll, lcms2-2.dll, zlib1.dll) can be found
-        // when WIC loads RW2Codec.dll from another process (e.g. explorer.exe)
-        {
-            WCHAR dllPath[MAX_PATH];
-            if (GetModuleFileNameW(hModule, dllPath, MAX_PATH) > 0)
-            {
-                // Remove filename, keep directory
-                WCHAR* lastSlash = wcsrchr(dllPath, L'\\');
-                if (lastSlash) *lastSlash = L'\0';
-                SetDllDirectoryW(dllPath);
-            }
-        }
         break;
     case DLL_PROCESS_DETACH:
         break;
@@ -40,17 +27,28 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void** ppv)
 
     *ppv = nullptr;
 
-    if (rclsid != CLSID_RW2Decoder)
-        return CLASS_E_CLASSNOTAVAILABLE;
+    try
+    {
+        if (rclsid != CLSID_RW2Decoder)
+            return CLASS_E_CLASSNOTAVAILABLE;
 
-    ClassFactory* pFactory = new (std::nothrow) ClassFactory();
-    if (pFactory == nullptr)
+        ClassFactory* pFactory = new (std::nothrow) ClassFactory();
+        if (pFactory == nullptr)
+            return E_OUTOFMEMORY;
+
+        HRESULT hr = pFactory->QueryInterface(riid, ppv);
+        pFactory->Release();
+
+        return hr;
+    }
+    catch (const std::bad_alloc&)
+    {
         return E_OUTOFMEMORY;
-
-    HRESULT hr = pFactory->QueryInterface(riid, ppv);
-    pFactory->Release();
-
-    return hr;
+    }
+    catch (...)
+    {
+        return E_FAIL;
+    }
 }
 
 STDAPI DllCanUnloadNow()
