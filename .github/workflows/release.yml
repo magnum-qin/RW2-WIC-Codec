@@ -1,0 +1,84 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Set up CMake
+      uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: '3.25.x'
+
+    - name: Install Dependencies via vcpkg
+      shell: pwsh
+      run: |
+        vcpkg install libraw:x64-windows
+
+    - name: Configure CMake
+      shell: pwsh
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -A x64
+
+    - name: Build Codec & Tools
+      shell: pwsh
+      run: |
+        cd build
+        cmake --build . --config Release
+
+    - name: Stage Release Files
+      shell: pwsh
+      run: |
+        # Copy dependency DLLs from vcpkg to build/Release/
+        Copy-Item -Path "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin/*.dll" -Destination "build/Release/" -Force
+        
+        # Copy install scripts
+        Copy-Item -Path "scripts/*.bat" -Destination "build/Release/" -Force
+
+    - name: Compile Inno Setup Installer
+      shell: pwsh
+      run: |
+        # Inno Setup is pre-installed on GitHub windows-latest runner
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" RW2Codec_Setup.iss
+
+    - name: Create ZIP Package
+      shell: pwsh
+      run: |
+        Compress-Archive -Path "build/Release/RW2Codec.dll", `
+                               "build/Release/raw.dll", `
+                               "build/Release/lcms2-2.dll", `
+                               "build/Release/zlib1.dll", `
+                               "build/Release/jasper.dll", `
+                               "build/Release/jpeg62.dll", `
+                               "build/Release/turbojpeg.dll", `
+                               "build/Release/install.bat", `
+                               "build/Release/uninstall.bat", `
+                               "build/Release/TestDecoder.exe", `
+                               "build/Release/TestExif.exe" `
+                         -DestinationPath "build/RW2Codec-${{ github.ref_name }}-x64.zip" `
+                         -Force
+
+    - name: Upload Artifacts to GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          build/RW2Codec_Setup_v*.exe
+          build/RW2Codec-*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
