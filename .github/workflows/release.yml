@@ -77,6 +77,8 @@ jobs:
     - name: Upload Artifacts to GitHub Release
       uses: softprops/action-gh-release@v2
       with:
+        name: "${{ github.ref_name }} EXIF Metadata & Security Update"
+        body_path: RELEASE_NOTES.md
         files: |
           build/RW2Codec_Setup_v*.exe
           build/RW2Codec-*.zip
