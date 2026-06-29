@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(RW2Codec VERSION 1.1.6 LANGUAGES CXX)
+project(RW2Codec VERSION 1.1.7 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -45,6 +45,17 @@ add_executable(TestDecoder
 )
 
 target_link_libraries(TestDecoder PRIVATE
+    windowscodecs
+    uuid
+    ole32
+    oleaut32
+)
+
+add_executable(TestExif
+    tests/TestExif.cpp
+)
+
+target_link_libraries(TestExif PRIVATE
     windowscodecs
     uuid
     ole32
