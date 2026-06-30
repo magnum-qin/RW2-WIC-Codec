@@ -65,19 +65,10 @@ jobs:
     - name: Create ZIP Package
       shell: pwsh
       run: |
-        Compress-Archive -Path "build/Release/RW2Codec.dll", `
-                               "build/Release/raw.dll", `
-                               "build/Release/lcms2-2.dll", `
-                               "build/Release/zlib1.dll", `
-                               "build/Release/jasper.dll", `
-                               "build/Release/jpeg62.dll", `
-                               "build/Release/turbojpeg.dll", `
-                               "build/Release/install.bat", `
-                               "build/Release/uninstall.bat", `
-                               "build/Release/TestDecoder.exe", `
-                               "build/Release/TestExif.exe" `
-                         -DestinationPath "build/RW2Codec-${{ github.ref_name }}-x64.zip" `
-                         -Force
+        # Clean up export libraries and build artifacts we don't want to bundle
+        Remove-Item -Path "build/Release/*.exp", "build/Release/*.lib" -Force -ErrorAction SilentlyContinue
+        # Compress the entire Release directory natively
+        Compress-Archive -Path "build/Release/*" -DestinationPath "build/RW2Codec-${{ github.ref_name }}-x64.zip" -Force
 
     - name: Upload Artifacts to GitHub Release
       uses: softprops/action-gh-release@v2

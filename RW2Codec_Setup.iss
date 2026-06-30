@@ -6,7 +6,7 @@
 ; AppId uniquely identifies this application.
 AppId={{8F3E8E60-9C1A-4B3D-A5E1-7C9F8B2D4A3C}_Installer}
 AppName=Panasonic RW2 WIC Codec
-AppVersion=1.1.8
+AppVersion=1.1.9
 AppPublisher=RW2-WIC-Codec Project
 AppPublisherURL=https://github.com/magnum-qin/RW2-WIC-Codec
 AppSupportURL=https://github.com/magnum-qin/RW2-WIC-Codec
@@ -29,7 +29,7 @@ DefaultGroupName=Panasonic RW2 WIC Codec
 
 ; Output settings
 OutputDir=.\build
-OutputBaseFilename=RW2Codec_Setup_v1.1.8
+OutputBaseFilename=RW2Codec_Setup_v1.1.9
 Compression=lzma2/ultra64
 SolidCompression=yes
 
@@ -50,12 +50,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Files]
 ; Dependencies must be extracted BEFORE the codec registers, so regsvr32 can find them.
 ; Use restartreplace/uninsrestartdelete so if explorer is locking them, Windows replaces them on reboot gracefully.
-Source: "build\Release\lcms2-2.dll"; DestDir: "{app}"; Flags: ignoreversion 64bit restartreplace uninsrestartdelete
-Source: "build\Release\raw.dll"; DestDir: "{app}"; Flags: ignoreversion 64bit restartreplace uninsrestartdelete
-Source: "build\Release\zlib1.dll"; DestDir: "{app}"; Flags: ignoreversion 64bit restartreplace uninsrestartdelete
-
-; IMPORTANT: The 'regserver' flag automatically runs regsvr32 during install and regsvr32 /u during uninstall.
-; '64bit' flag ensures it is registered in the 64-bit registry.
+Source: "build\Release\*.dll"; DestDir: "{app}"; Excludes: "RW2Codec.dll"; Flags: ignoreversion 64bit restartreplace uninsrestartdelete
 Source: "build\Release\RW2Codec.dll"; DestDir: "{app}"; Flags: ignoreversion regserver 64bit restartreplace uninsrestartdelete
 
 

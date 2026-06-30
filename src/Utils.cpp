@@ -22,8 +22,16 @@ HRESULT EnsureDependenciesLoaded()
 
         std::wstring dir = dllPath;
         
-        // Load in dependency order: zlib1 -> lcms2-2 -> raw
+        // Load in dependency order: zlib (zlib1.dll, z.dll, or zlib.dll) -> lcms2-2 -> raw
         HMODULE hZlib = LoadLibraryExW((dir + L"\\zlib1.dll").c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+        if (!hZlib)
+        {
+            hZlib = LoadLibraryExW((dir + L"\\z.dll").c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+        }
+        if (!hZlib)
+        {
+            hZlib = LoadLibraryExW((dir + L"\\zlib.dll").c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+        }
         if (!hZlib)
         {
             hrLoad = HRESULT_FROM_WIN32(GetLastError());
