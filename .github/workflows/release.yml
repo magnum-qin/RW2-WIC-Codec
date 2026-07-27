@@ -18,34 +18,32 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
-    - name: Set up MSVC Developer Command Prompt
-      uses: ilammy/msvc-dev-cmd@v1
+    - name: Check out pinned vcpkg
+      uses: actions/checkout@v7
       with:
-        arch: x64
+        repository: microsoft/vcpkg
+        ref: 6d9d7df564a1ccdaa994e4ad39ccd4a32360867b
+        path: .vcpkg
 
-    - name: Set up CMake
-      uses: jwlawson/actions-setup-cmake@v2
-      with:
-        cmake-version: '3.25.x'
+    - name: Bootstrap vcpkg
+      shell: pwsh
+      run: .\.vcpkg\bootstrap-vcpkg.bat -disableMetrics
 
     - name: Configure CMake
       shell: pwsh
       run: |
-        mkdir build
-        cd build
-        cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        cmake -S . -B build -A x64 `
+          -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/.vcpkg/scripts/buildsystems/vcpkg.cmake" `
+          -DVCPKG_TARGET_TRIPLET=x64-windows `
+          -DBUILD_TESTING=ON
 
     - name: Build Codec & Tools
       shell: pwsh
       run: |
-        cd build
-        cmake --build .
-        ctest --output-on-failure
-        # Create Release folder and copy binaries to maintain the directory structure expected by Inno Setup
-        mkdir Release
-        Copy-Item -Path "RW2Codec.dll", "TestDecoder.exe", "TestExif.exe", "TestPerf.exe" -Destination "Release/" -Force
+        cmake --build build --config Release
+        ctest --test-dir build -C Release --output-on-failure
 
     - name: Stage Release Files
       shell: pwsh

@@ -23,24 +23,24 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Set up MSVC
-        uses: ilammy/msvc-dev-cmd@v1
+      - name: Check out pinned vcpkg
+        uses: actions/checkout@v7
         with:
-          arch: x64
+          repository: microsoft/vcpkg
+          ref: 6d9d7df564a1ccdaa994e4ad39ccd4a32360867b
+          path: .vcpkg
 
-      - name: Set up CMake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: 3.25.x
+      - name: Bootstrap vcpkg
+        shell: pwsh
+        run: .\.vcpkg\bootstrap-vcpkg.bat -disableMetrics
 
       - name: Configure
         shell: pwsh
         run: >
-          cmake -S . -B build -G Ninja
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          cmake -S . -B build -A x64
+          -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/.vcpkg/scripts/buildsystems/vcpkg.cmake"
           -DVCPKG_TARGET_TRIPLET=x64-windows
           -DBUILD_TESTING=ON
 

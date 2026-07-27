@@ -22,15 +22,21 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Set up MSVC
-        uses: ilammy/msvc-dev-cmd@v1
+      - name: Check out pinned vcpkg
+        uses: actions/checkout@v7
         with:
-          arch: x64
+          repository: microsoft/vcpkg
+          ref: 6d9d7df564a1ccdaa994e4ad39ccd4a32360867b
+          path: .vcpkg
+
+      - name: Bootstrap vcpkg
+        shell: pwsh
+        run: .\.vcpkg\bootstrap-vcpkg.bat -disableMetrics
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: c-cpp
 
@@ -38,11 +44,11 @@ jobs:
         shell: pwsh
         run: >
           cmake -S . -B build -A x64
-          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/.vcpkg/scripts/buildsystems/vcpkg.cmake"
           -DBUILD_TESTING=OFF
 
       - name: Build
         run: cmake --build build --config Release
 
       - name: Analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
