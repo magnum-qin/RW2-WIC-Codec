@@ -1,275 +1,129 @@
-# RW2 Codec - 构建前准备和步骤
+# RW2 WIC Codec 构建指南
 
-## 当前状态检测
+本指南适用于 Windows 10/11 x64。构建过程不需要管理员权限；只有注册 Codec 时才需要管理员权限。
 
-根据检测，您的系统需要安装以下工具才能构建项目：
+## 1. 安装工具
 
-### ❌ 缺少的工具
+### Visual Studio 2022
 
-1. **CMake** - 未找到
-2. **vcpkg** - 未找到（或未在标准位置）
-3. **Visual Studio** - 需要检查
+安装 Visual Studio 2022，并选择：
 
----
+- **使用 C++ 的桌面开发**
+- MSVC v143 x64/x86 生成工具
+- Windows 10 或 Windows 11 SDK
+- CMake tools for Windows（推荐）
 
-## 📋 完整安装指南
+### CMake
 
-### 步骤 1: 安装 Visual Studio
-
-1. **下载 Visual Studio 2022 Community**（免费）
-   - 访问: https://visualstudio.microsoft.com/zh-hans/downloads/
-   - 下载 "Community" 版本
-
-2. **安装时选择以下工作负载：**
-   - ✅ "使用C++的桌面开发"（Desktop development with C++）
-   - 确保包含：
-     - MSVC v143 或更新版本
-     - Windows SDK
-     - CMake 工具
-
-3. **安装完成后重启**
-
----
-
-### 步骤 2: 安装 vcpkg（包管理器）
-
-#### 方法 1: 自动安装脚本
-
-打开 **PowerShell**（管理员模式）并运行：
-
-```powershell
-# 创建 vcpkg 目录
-cd C:\
-git clone https://github.com/Microsoft/vcpkg.git
-cd vcpkg
-
-# 引导安装
-.\bootstrap-vcpkg.bat
-
-# 集成到系统
-.\vcpkg integrate install
-
-# 设置环境变量
-[System.Environment]::SetEnvironmentVariable('VCPKG_ROOT', 'C:\vcpkg', 'User')
-```
-
-#### 方法 2: 手动安装
-
-1. 下载 vcpkg：https://github.com/Microsoft/vcpkg
-2. 解压到 `C:\vcpkg`
-3. 在该目录打开命令提示符
-4. 运行 `bootstrap-vcpkg.bat`
-5. 运行 `vcpkg integrate install`
-6. 添加环境变量 `VCPKG_ROOT=C:\vcpkg`
-
----
-
-### 步骤 3: 安装 LibRaw（通过 vcpkg）
-
-在 PowerShell 或命令提示符中运行：
+需要 CMake 3.15 或更高版本：
 
 ```batch
-cd C:\vcpkg
-vcpkg install libraw:x64-windows
-```
-
-**预计安装时间：** 5-10分钟（首次会编译依赖项）
-
----
-
-### 步骤 4: 验证安装
-
-运行以下命令验证工具已安装：
-
-```powershell
-# 检查 CMake（可能需要重启终端）
 cmake --version
-
-# 检查 vcpkg
-vcpkg version
-
-# 检查 LibRaw
-vcpkg list | Select-String "libraw"
 ```
 
-应该看到类似输出：
-```
-cmake version 3.27.x
-vcpkg 2024.xx.xx
-libraw:x64-windows
-```
-
----
-
-## 🔨 构建项目
-
-### 选项 1: 使用提供的构建脚本
-
-1. **设置 VCPKG_ROOT 环境变量**（如果还没有）：
-   ```batch
-   set VCPKG_ROOT=C:\vcpkg
-   ```
-
-2. **运行构建脚本**：
-   ```batch
-   cd C:\Users\qhz00\Projects\RW2Codec
-   build.bat
-   ```
-
-### 选项 2: 手动 CMake 构建
-
-1. **打开 "Developer Command Prompt for VS 2022"**
-   - 在开始菜单搜索 "Developer Command Prompt"
-   - 或者右键开始菜单 → Visual Studio 2022 → Developer Command Prompt
-
-2. **导航到项目目录**：
-   ```batch
-   cd C:\Users\qhz00\Projects\RW2Codec
-   ```
-
-3. **创建构建目录**：
-   ```batch
-   mkdir build
-   cd build
-   ```
-
-4. **配置 CMake**：
-   ```batch
-   cmake .. -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -A x64
-   ```
-
-5. **编译项目**：
-   ```batch
-   cmake --build . --config Release
-   ```
-
-### 选项 3: 使用 Visual Studio IDE
-
-1. **打开 Visual Studio 2022**
-
-2. **选择 "打开本地文件夹"**
-   - 浏览到 `C:\Users\qhz00\Projects\RW2Codec`
-
-3. **配置 CMake 设置**：
-   - 打开 `CMakeSettings.json`（如果没有则创建）
-   - 添加 vcpkg toolchain 路径：
-   ```json
-   {
-     "configurations": [
-       {
-         "name": "x64-Release",
-         "generator": "Ninja",
-         "configurationType": "Release",
-         "buildRoot": "${projectDir}\\build\\${name}",
-         "cmakeCommandArgs": "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
-       }
-     ]
-   }
-   ```
-
-4. **构建**：
-   - 右键 CMakeLists.txt → 生成
-
----
-
-## 📦 构建输出
-
-成功构建后，您将在以下位置找到文件：
-
-```
-RW2Codec\build\Release\
-├── RW2Codec.dll          ⭐ 主要的 Codec DLL
-├── RW2Codec.lib          导入库
-├── TestDecoder.exe       测试程序
-└── [依赖的 DLL 文件]      LibRaw.dll 等
-```
-
----
-
-## 🧪 测试构建
-
-构建完成后，测试 Codec：
+### vcpkg
 
 ```batch
-cd build\Release
-
-# 测试程序（需要一个 RW2 文件）
-TestDecoder.exe C:\path\to\your\test.rw2
-```
-
----
-
-## 📥 安装 Codec 到系统
-
-1. **复制安装脚本**：
-   ```batch
-   cd build\Release
-   copy ..\..\scripts\install.bat .
-   copy ..\..\scripts\uninstall.bat .
-   ```
-
-2. **运行安装**（需要管理员权限）：
-   - 右键 `install.bat` → "以管理员身份运行"
-
-3. **验证安装**：
-   - 打开文件资源管理器
-   - 导航到包含 RW2 文件的文件夹
-   - 切换到"大图标"或"超大图标"视图
-   - 应该能看到 RW2 缩略图！
-
----
-
-## ❓ 常见问题
-
-### Q: "找不到 cmake"
-**A:** 安装 Visual Studio 时确保选择了 "CMake 工具"，或单独安装 CMake：
-- 下载：https://cmake.org/download/
-- 安装后重启终端
-
-### Q: "LibRaw 未找到"
-**A:** 确保：
-1. vcpkg 已安装
-2. 运行了 `vcpkg install libraw:x64-windows`
-3. CMake 命令包含了 toolchain 文件参数
-
-### Q: "无法打开 wincodec.h"
-**A:** 安装 Windows SDK：
-- Visual Studio Installer → 修改 → 单个组件 → 搜索 "Windows SDK"
-
-### Q: 构建成功但缺少 LibRaw.dll
-**A:** 从 vcpkg 复制 DLL：
-```batch
-copy C:\vcpkg\installed\x64-windows\bin\*.dll build\Release\
-```
-
----
-
-## 🚀 快速开始（如果已有所有工具）
-
-如果您已经安装了所有必要工具：
-
-```batch
-# 1. 设置环境变量（仅需一次）
+git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+C:\vcpkg\bootstrap-vcpkg.bat
 set VCPKG_ROOT=C:\vcpkg
-
-# 2. 构建
-cd C:\Users\qhz00\Projects\RW2Codec
-build.bat
-
-# 3. 安装
-cd build\Release
-copy ..\..\scripts\install.bat .
-# 右键 install.bat → 以管理员身份运行
 ```
 
----
+如需永久设置 `VCPKG_ROOT`，请使用 Windows“环境变量”设置，而不是把个人路径提交到仓库。
 
-## 📞 需要帮助？
+## 2. 安装依赖
 
-查看详细的故障排除指南：`TROUBLESHOOTING.md`
+仓库中的 `vcpkg.json` 声明了 LibRaw：
 
-或检查构建日志中的具体错误信息。
+```batch
+cd D:\path\to\RW2-WIC-Codec
+%VCPKG_ROOT%\vcpkg install --triplet x64-windows
+```
 
----
+CMake 使用 vcpkg 工具链时也会自动处理 manifest 依赖。
 
-**祝构建顺利！** 🎉
+## 3. 配置与编译
+
+### Visual Studio 生成器
+
+```batch
+cmake -S . -B build -A x64 ^
+  -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" ^
+  -DBUILD_TESTING=ON
+cmake --build build --config Debug
+cmake --build build --config Release
+```
+
+### Ninja
+
+请先从 Visual Studio Developer PowerShell 运行：
+
+```batch
+cmake -S . -B build-ninja -G Ninja ^
+  -DCMAKE_BUILD_TYPE=Release ^
+  -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" ^
+  -DBUILD_TESTING=ON
+cmake --build build-ninja
+```
+
+不要在同一个构建目录中混用 Visual Studio 和 Ninja 生成器。
+
+## 4. 运行自动测试
+
+Visual Studio 构建目录：
+
+```batch
+ctest --test-dir build -C Debug --output-on-failure
+ctest --test-dir build -C Release --output-on-failure
+```
+
+Ninja 构建目录：
+
+```batch
+ctest --test-dir build-ninja --output-on-failure
+```
+
+这些是无需相机文件的启动烟雾测试。完整解码测试需要一个有权使用的 RW2 样本以及已注册的 Codec。
+
+## 5. 准备便携测试目录
+
+以 Release 配置为例：
+
+```batch
+mkdir package
+copy build\Release\RW2Codec.dll package\
+copy build\Release\Test*.exe package\
+copy scripts\*.bat package\
+copy vcpkg_installed\x64-windows\bin\*.dll package\
+```
+
+如果使用的是 classic vcpkg 布局，依赖 DLL 可能位于：
+
+```text
+%VCPKG_ROOT%\installed\x64-windows\bin
+```
+
+Codec 和所有依赖 DLL 必须放在同一个目录。
+
+## 6. 注册和集成验证
+
+在测试机器上，以管理员身份运行：
+
+```batch
+package\install.bat
+```
+
+然后执行：
+
+```batch
+package\TestDecoder.exe C:\Photos\sample.rw2
+package\TestExif.exe C:\Photos\sample.rw2
+```
+
+确认资源管理器缩略图、Windows 照片、EXIF 输出和卸载流程。测试结束后，以管理员身份运行 `uninstall.bat`。
+
+RW2 文件可能包含位置、相机序列号和作者信息，未经检查不要公开提交样本。
+
+## 常见问题
+
+构建失败、依赖 DLL 缺失、注册失败或缩略图不刷新时，请参阅 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)。

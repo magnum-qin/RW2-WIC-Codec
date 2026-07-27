@@ -10,6 +10,7 @@ AppVersion=1.1.9
 AppPublisher=RW2-WIC-Codec Project
 AppPublisherURL=https://github.com/magnum-qin/RW2-WIC-Codec
 AppSupportURL=https://github.com/magnum-qin/RW2-WIC-Codec
+LicenseFile=LICENSE
 
 ; Enable modern wizard style (requires Inno Setup 6+)
 WizardStyle=modern
@@ -52,6 +53,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; Use restartreplace/uninsrestartdelete so if explorer is locking them, Windows replaces them on reboot gracefully.
 Source: "build\Release\*.dll"; DestDir: "{app}"; Excludes: "RW2Codec.dll"; Flags: ignoreversion 64bit restartreplace uninsrestartdelete
 Source: "build\Release\RW2Codec.dll"; DestDir: "{app}"; Flags: ignoreversion regserver 64bit restartreplace uninsrestartdelete
+Source: "build\Release\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "build\Release\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "build\Release\licenses\*"; DestDir: "{app}\licenses"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 
 [Icons]

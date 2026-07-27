@@ -1,0 +1,9 @@
+{
+  "name": "rw2-wic-codec",
+  "version-string": "1.1.9",
+  "description": "Windows Imaging Component codec for Panasonic RW2 files",
+  "builtin-baseline": "6d9d7df564a1ccdaa994e4ad39ccd4a32360867b",
+  "dependencies": [
+    "libraw"
+  ]
+}

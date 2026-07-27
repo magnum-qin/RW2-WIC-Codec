@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-and-release:
     runs-on: windows-latest
@@ -26,11 +30,6 @@ jobs:
       with:
         cmake-version: '3.25.x'
 
-    - name: Install Dependencies via vcpkg
-      shell: pwsh
-      run: |
-        vcpkg install libraw:x64-windows
-
     - name: Configure CMake
       shell: pwsh
       run: |
@@ -43,18 +42,27 @@ jobs:
       run: |
         cd build
         cmake --build .
+        ctest --output-on-failure
         # Create Release folder and copy binaries to maintain the directory structure expected by Inno Setup
         mkdir Release
-        Copy-Item -Path "RW2Codec.dll", "TestDecoder.exe", "TestExif.exe" -Destination "Release/" -Force
+        Copy-Item -Path "RW2Codec.dll", "TestDecoder.exe", "TestExif.exe", "TestPerf.exe" -Destination "Release/" -Force
 
     - name: Stage Release Files
       shell: pwsh
       run: |
         # Copy dependency DLLs from vcpkg to build/Release/
-        Copy-Item -Path "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin/*.dll" -Destination "build/Release/" -Force
+        Copy-Item -Path "vcpkg_installed/x64-windows/bin/*.dll" -Destination "build/Release/" -Force
         
         # Copy install scripts
         Copy-Item -Path "scripts/*.bat" -Destination "build/Release/" -Force
+
+        # Include project and dependency license notices in every package
+        Copy-Item -Path "LICENSE", "THIRD_PARTY_NOTICES.md" -Destination "build/Release/" -Force
+        New-Item -ItemType Directory -Path "build/Release/licenses" -Force | Out-Null
+        Get-ChildItem -Path "vcpkg_installed/x64-windows/share" -Filter "copyright" -Recurse |
+          ForEach-Object {
+            Copy-Item -Path $_.FullName -Destination "build/Release/licenses/$($_.Directory.Name).txt" -Force
+          }
 
     - name: Compile Inno Setup Installer
       shell: pwsh
@@ -73,7 +81,7 @@ jobs:
     - name: Upload Artifacts to GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        name: "${{ github.ref_name }} EXIF Metadata & Security Update"
+        name: "${{ github.ref_name }}"
         body_path: RELEASE_NOTES.md
         files: |
           build/RW2Codec_Setup_v*.exe

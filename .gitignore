@@ -37,7 +37,6 @@ CTestTestfile.cmake
 *.so
 *.dylib
 *.dll
-!RW2Codec.dll
 
 # Compiled Static libraries
 *.lib

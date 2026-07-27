@@ -1,118 +1,133 @@
-# RW2 WIC Codec - 松下RAW格式（.rw2）的Windows原生编解码器
+# RW2 WIC Codec
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20(x64)-blue.svg)]()
-[![Language](https://img.shields.io/badge/language-C%2B%2B17-orange.svg)]()
+让 Windows 原生读取松下 RW2 文件
 
-> Windows 图像组件 (WIC) 编解码插件，让 Windows 系统（资源管理器、照片应用等）原生支持松下相机 `.rw2` 格式 RAW 文件的预览、属性读取与极速加载。
+[![CI](https://github.com/magnum-qin/RW2-WIC-Codec/actions/workflows/ci.yml/badge.svg)](https://github.com/magnum-qin/RW2-WIC-Codec/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/magnum-qin/RW2-WIC-Codec)](https://github.com/magnum-qin/RW2-WIC-Codec/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/magnum-qin/RW2-WIC-Codec/total)](https://github.com/magnum-qin/RW2-WIC-Codec/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D4)
+![C++](https://img.shields.io/badge/C%2B%2B-17-00599C)
 
-[English](README.md) | **简体中文** | [日本語](README_JA.md)
+[English](README.md) · **简体中文** · [日本語](README_JA.md)
 
----
+RW2 WIC Codec 是一个面向 64 位 Windows 的 Windows Imaging Component 解码器。安装后，Windows 资源管理器、Windows 照片以及其他使用 WIC 的程序可以直接解码兼容的松下 `.rw2` RAW 文件。
 
-## 📷 简介
+[下载最新版](https://github.com/magnum-qin/RW2-WIC-Codec/releases/latest) · [报告问题](https://github.com/magnum-qin/RW2-WIC-Codec/issues/new?template=bug_report.yml) · [故障排查](TROUBLESHOOTING.md)
 
-**RW2 WIC Codec** 是一款专为 Windows 系统开发的高性能 WIC 图像解码器。它利用底层的专业开源图像处理库 `LibRaw` 驱动，能够将松下 Lumix 相机拍摄的 `.rw2` RAW 格式图像无缝嵌入到 Windows 的系统底层中。
+## 主要功能
 
-安装本编解码器后，您可以在不安装任何第三方图像查看软件的情况下：
-- 在 **文件资源管理器** 中直接以缩略图查看 `.rw2` 文件
-- 在 **Windows 照片** 应用中双击直接打开与流畅缩放
-- 在 **画图 (Paint)**、**Microsoft Office** 以及任何调用系统 WIC 接口的第三方软件中直接导入与编辑 `.rw2` 照片
-- 直接在文件的“属性”窗口和资源管理器“详细信息”窗格中查看拍摄时的 EXIF 元数据
+- 为松下 RW2 文件提供系统级 WIC 解码
+- 资源管理器缩略图和预览
+- Windows 照片及其他 WIC 程序支持
+- 基于 LibRaw 的相机白平衡、sRGB 输出和 PPG 插值
+- 通过 `IWICBitmapDecoder::GetPreview` 读取内嵌 JPEG 预览
+- 通过 `IWICMetadataQueryReader` 读取相机、曝光、ISO、焦距、拍摄时间、方向和尺寸等 EXIF 信息
+- 共享 RAW 缓冲区，减少解码器与帧对象之间的数据复制
+- 在 Codec 所在目录中线程安全地加载 LibRaw 及其依赖
+- 在 COM 边界拦截 C++ 异常，降低损坏文件影响宿主程序的风险
 
----
-
-## ✨ 主要特性
-
-- ⚡ **深度系统集成**：一键安装，全局生效，行为与系统内置 JPEG 格式无异。
-- 🎨 **专业 RAW 渲染**：基于 LibRaw 进行底层的解析与颜色映射。
-  - 支持应用相机拍摄时的白平衡设置 (Camera WB)
-  - 自动渲染到标准 sRGB 色彩空间，色彩呈现准确
-  - 使用 PPG 补间插值算法，在保证高清画质的前提下比传统 AHD 算法提升 3 倍的渲染速度
-  - 自动进行亮度矫正
-- 🏷️ **EXIF 元数据完美读取 (新功能)**：深度支持 WIC 标准的 `IWICMetadataQueryReader` 接口。
-  - 原生提取拍摄参数：相机品牌 (Make)、型号 (Model)、快门速度 (ExposureTime)、光圈值 (FNumber)、ISO 感光度、焦距 (FocalLength)、拍摄时间 (DateTimeOriginal)、画面旋转方向 (Orientation) 以及原始图片宽高。
-  - 对超高 ISO 感光度进行了安全溢出处理（超过 65535 时采用 `VT_UI4` 存储），确保极暗环境下拍摄的 RAW 照片也能正确解析。
-- 🚀 **内存与性能双向优化**：
-  - 内部采用 `shared_ptr` 数据引用共享模型，避免在解码时对海量 RAW 文件数据进行多余的内存拷贝。
-  - 支持极速读取内嵌的 JPEG 预览图 (`GetPreview`)，使照片查看器能够以毫秒级速度打开图片。
-- 🔒 **工业级稳定性与安全性**：
-  - **动态依赖延迟加载与隔离**：彻底重构了 DLL 依赖加载机制。去除了 `DllMain` 中对系统全局 DLL 搜索路径的修改（如 `SetDefaultDllDirectories`），改用局部线程安全的 `std::call_once` 和 `LOAD_WITH_ALTERED_SEARCH_PATH` 进行沙箱化按需加载，绝不污染宿主程序（如资源管理器 explorer.exe）的 DLL 搜索路径，杜绝 DLL 劫持与 DllMain 死锁隐患。
-  - **COM 边界异常屏障**：在所有暴露给 WIC 系统的 COM 接口方法上配置了完整的 `try/catch` 异常防护壁垒，将标准库内存分配异常 (`std::bad_alloc`) 转换为 `E_OUTOFMEMORY`，未知异常转换为 `E_FAIL`，防止因为 RAW 图片受损或底层算法崩溃导致宿主进程崩溃。
-  - **精准签名识别**：精准匹配松下专用的 TIFF 变体签名 (`II` + `0x0055`)，在反注册时完全清理相关注册表项，不会与其他 RAW 格式（如 `.arw`、`.nef`、`.cr2` 等）产生任何系统冲突。
-
----
-
-## 💻 系统要求
-
-- **操作系统**：Windows 10 或 Windows 11 (仅支持 64位/x64)
-- **权限**：安装与反注册时由于需要修改注册表以注册 COM 组件，必须使用管理员权限运行脚本
-- **开发依赖 (从源码构建)**：Visual Studio 2022 / CMake 3.15+ / vcpkg
-
----
-
-## 📥 安装方法
-
-### 方式一：使用预编译的安装包（推荐）
-
-1. 在项目 GitHub Release 页面下载最新的压缩包。
-2. 解压到您希望存放编解码器的文件夹（例如 `C:\Program Files\RW2Codec`）。
-3. 鼠标右键点击 `install.bat`，选择 **“以管理员身份运行”**。
-4. 看到成功提示后，重启 Windows 资源管理器（或重启电脑）即可生效。
-
-### 方式二：从源码编译构建
-
-详细编译配置指南请参考 [BUILD_GUIDE_CN.md](BUILD_GUIDE_CN.md)。
-
-**快速构建步骤**：
-```batch
-# 1. 使用 vcpkg 安装 LibRaw 依赖
-vcpkg install libraw:x64-windows
-
-# 2. 运行构建脚本进行编译
-setup_and_build.bat
-
-# 3. 运行注册脚本
-cd build\Release
-右键点击 install.bat -> "以管理员身份运行"
+```mermaid
+flowchart LR
+    A["松下 RW2 文件"] --> B["Windows WIC"]
+    B --> C["RW2 WIC Codec"]
+    C --> D["LibRaw"]
+    D --> E["24 位 BGR / sRGB"]
+    E --> F["资源管理器、照片及 WIC 程序"]
 ```
 
----
+## 系统要求与兼容性
 
-## 🗑️ 卸载方法
+| 项目 | 要求 |
+| --- | --- |
+| 操作系统 | Windows 10 或 Windows 11 |
+| 架构 | 仅支持 x64 |
+| 安装权限 | 需要管理员权限 |
+| 源码构建 | Visual Studio 2022、CMake 3.15+、vcpkg |
+| 解码后端 | LibRaw |
 
-如果您需要移除编解码插件，只需打开对应的安装目录：
-1. 右键点击 `uninstall.bat`，选择 **“以管理员身份运行”**。
-2. 系统会自动反注册并彻底清除关联的注册表项。
+具体相机兼容性取决于 Release 中附带的 LibRaw 版本以及相机、固件组合。如果文件无法打开，请在问题报告中提供相机型号和相关错误输出。
 
----
+## 安装
 
-## 🧪 功能验证与测试
+### 使用安装程序
 
-我们内置了自动化测试程序，方便您验证插件是否完美运行。
+1. 打开[最新 Release](https://github.com/magnum-qin/RW2-WIC-Codec/releases/latest)。
+2. 下载 `RW2Codec_Setup_v*.exe`。
+3. 运行安装程序并允许管理员权限。
+4. 如果缩略图没有立即刷新，请重启资源管理器或 Windows。
 
-运行核心编解码测试：
+当前发布的安装程序尚未进行代码签名，因此 Windows SmartScreen 可能显示警告。请只从本仓库 Releases 页面下载，并在运行前核对 GitHub 提供的 SHA-256 摘要。
+
+### 使用便携压缩包
+
+下载 `RW2Codec-v*-x64.zip`，将所有文件解压到一个长期保留的目录，然后以管理员身份运行 `install.bat`。注册后不要单独移动 Codec 或依赖 DLL。
+
+### 卸载
+
+使用安装程序安装时，从 Windows“已安装的应用”中卸载。使用便携包时，先以管理员身份运行 `uninstall.bat`，再删除文件目录。
+
+## 从源码构建
+
+安装 Visual Studio 2022 的“使用 C++ 的桌面开发”组件、CMake 和 vcpkg，然后运行：
+
 ```batch
-TestDecoder.exe C:\路径\至\您的照片.rw2
+vcpkg install --triplet x64-windows
+cmake -S . -B build -A x64 ^
+  -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" ^
+  -DBUILD_TESTING=ON
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
-该测试会检测 WIC 接口是否成功匹配，并读取分辨率、尺寸、DPI，且无损保存出一张 BMP 格式的对比大图。
 
-运行 EXIF 元数据提取测试：
+也可以运行交互式脚本 `setup_and_build.bat`。完整说明参见 [BUILD_GUIDE_CN.md](BUILD_GUIDE_CN.md)。
+
+## 使用 RW2 文件验证
+
+自动 CTest 只验证诊断程序能否正常启动。完整解码属于集成测试，需要已注册的 Codec 和真实 RW2 样本。
+
 ```batch
-TestExif.exe C:\路径\至\您的照片.rw2
+TestDecoder.exe C:\Photos\sample.rw2
+TestExif.exe C:\Photos\sample.rw2
+TestPerf.exe C:\Photos\sample.rw2
 ```
-该测试会详细列出该 RAW 照片中提取出来的相机品牌、快门速度、光圈、ISO、焦距、拍摄时间等 EXIF 信息。
 
----
+- `TestDecoder` 通过 WIC 解码并输出 BMP，供人工对比。
+- `TestExif` 输出 WIC 暴露的部分 EXIF 信息。
+- `TestPerf` 比较 LibRaw 插值模式，仅用于本机诊断，不代表正式性能基准。
 
-## 📄 开源许可协议
+公开上传 RW2 样本前，请先检查其中是否包含位置、相机序列号、作者等敏感元数据。
 
-- 本插件主要代码采用 **MIT License** 开源。
-- 依赖的开源 RAW 解码库 **LibRaw** 遵循 LGPL 2.1 或 CDDL 1.0 协议分发。
+## 仓库结构
 
----
+```text
+.
+├── .github/                 # CI、发布流程和社区模板
+├── include/                 # COM 与 WIC 接口声明
+├── src/                     # 解码、注册、元数据和依赖加载实现
+├── tests/                   # 诊断程序与烟雾测试
+├── scripts/                 # 便携安装和卸载脚本
+├── CMakeLists.txt           # 构建与 CTest 配置
+├── vcpkg.json               # LibRaw 依赖清单
+└── RW2Codec_Setup.iss       # Inno Setup 安装程序
+```
 
-## 🙏 致谢
+组件说明参见 [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)。
 
-- **LibRaw** - https://www.libraw.org/
-- **Windows Imaging Component (WIC)** - Microsoft
+## 文档
+
+| 文档 | 用途 |
+| --- | --- |
+| [BUILD_GUIDE_CN.md](BUILD_GUIDE_CN.md) | 完整构建指南 |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | 构建、安装及运行故障排查 |
+| [CHANGELOG.md](CHANGELOG.md) | 版本历史 |
+| [RELEASE_NOTES.md](RELEASE_NOTES.md) | 当前版本发行说明 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 开发与 Pull Request 流程 |
+| [SECURITY.md](SECURITY.md) | 私密报告安全漏洞 |
+| [SUPPORT.md](SUPPORT.md) | 支持范围与诊断清单 |
+
+## 贡献与许可
+
+欢迎提交缺陷报告、相机兼容性反馈、文档改进和目标明确的 Pull Request。开始前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 和[行为准则](CODE_OF_CONDUCT.md)。
+
+项目源代码采用 [MIT License](LICENSE)。LibRaw 采用 LGPL 2.1 或 CDDL 1.0；重新分发二进制前请阅读 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

@@ -3,9 +3,11 @@
 #include <wincodecsdk.h>
 #include <iostream>
 #include <string>
-#include <atlbase.h>
+#include <wrl/client.h>
 
 #pragma comment(lib, "windowscodecs.lib")
+
+using Microsoft::WRL::ComPtr;
 
 void PrintError(const char* message, HRESULT hr)
 {
@@ -26,23 +28,23 @@ bool TestDecoder(const wchar_t* filePath)
 
     bool success = false;
     {
-        CComPtr<IWICImagingFactory> pFactory;
-        CComPtr<IWICBitmapDecoder> pDecoder;
-        CComPtr<IWICBitmapFrameDecode> pFrame;
-        CComPtr<IWICStream> pStream;
+        ComPtr<IWICImagingFactory> pFactory;
+        ComPtr<IWICBitmapDecoder> pDecoder;
+        ComPtr<IWICBitmapFrameDecode> pFrame;
+        ComPtr<IWICStream> pStream;
 
         // Create WIC factory
         hr = CoCreateInstance(
             CLSID_WICImagingFactory,
             nullptr,
             CLSCTX_INPROC_SERVER,
-            IID_PPV_ARGS(&pFactory)
+            IID_PPV_ARGS(pFactory.GetAddressOf())
         );
 
         if (SUCCEEDED(hr))
         {
             // Create stream
-            hr = pFactory->CreateStream(&pStream);
+            hr = pFactory->CreateStream(pStream.GetAddressOf());
         }
 
         if (SUCCEEDED(hr))
@@ -55,10 +57,10 @@ bool TestDecoder(const wchar_t* filePath)
         {
             // Create decoder from stream
             hr = pFactory->CreateDecoderFromStream(
-                pStream,
+                pStream.Get(),
                 nullptr,
                 WICDecodeMetadataCacheOnDemand,
-                &pDecoder
+                pDecoder.GetAddressOf()
             );
         }
 
@@ -79,7 +81,7 @@ bool TestDecoder(const wchar_t* filePath)
             }
 
             // Get first frame
-            hr = pDecoder->GetFrame(0, &pFrame);
+            hr = pDecoder->GetFrame(0, pFrame.GetAddressOf());
             if (FAILED(hr))
             {
                 PrintError("Failed to get frame", hr);
@@ -119,10 +121,10 @@ bool TestDecoder(const wchar_t* filePath)
                 }
                 outputPath += L"_output.bmp";
 
-                CComPtr<IWICStream> pOutputStream;
-                CComPtr<IWICBitmapEncoder> pEncoder;
+                ComPtr<IWICStream> pOutputStream;
+                ComPtr<IWICBitmapEncoder> pEncoder;
 
-                hr = pFactory->CreateStream(&pOutputStream);
+                    hr = pFactory->CreateStream(pOutputStream.GetAddressOf());
                 if (SUCCEEDED(hr))
                 {
                     hr = pOutputStream->InitializeFromFilename(outputPath.c_str(), GENERIC_WRITE);
@@ -130,18 +132,18 @@ bool TestDecoder(const wchar_t* filePath)
 
                 if (SUCCEEDED(hr))
                 {
-                    hr = pFactory->CreateEncoder(GUID_ContainerFormatBmp, nullptr, &pEncoder);
+                    hr = pFactory->CreateEncoder(GUID_ContainerFormatBmp, nullptr, pEncoder.GetAddressOf());
                 }
 
                 if (SUCCEEDED(hr))
                 {
-                    hr = pEncoder->Initialize(pOutputStream, WICBitmapEncoderNoCache);
+                    hr = pEncoder->Initialize(pOutputStream.Get(), WICBitmapEncoderNoCache);
                 }
 
-                CComPtr<IWICBitmapFrameEncode> pEncodeFrame;
+                ComPtr<IWICBitmapFrameEncode> pEncodeFrame;
                 if (SUCCEEDED(hr))
                 {
-                    hr = pEncoder->CreateNewFrame(&pEncodeFrame, nullptr);
+                    hr = pEncoder->CreateNewFrame(pEncodeFrame.GetAddressOf(), nullptr);
                 }
 
                 if (SUCCEEDED(hr))
@@ -156,7 +158,7 @@ bool TestDecoder(const wchar_t* filePath)
 
                 if (SUCCEEDED(hr))
                 {
-                    hr = pEncodeFrame->WriteSource(pFrame, nullptr);
+                    hr = pEncodeFrame->WriteSource(pFrame.Get(), nullptr);
                 }
 
                 if (SUCCEEDED(hr))
@@ -192,6 +194,12 @@ int wmain(int argc, wchar_t* argv[])
     std::locale::global(std::locale(""));
     std::wcout.imbue(std::locale(""));
     std::wcerr.imbue(std::locale(""));
+
+    if (argc >= 2 && (std::wstring(argv[1]) == L"--help" || std::wstring(argv[1]) == L"-h"))
+    {
+        std::wcout << L"Usage: TestDecoder.exe <path_to_rw2_file>" << std::endl;
+        return 0;
+    }
 
     std::wcout << L"RW2 Codec Test Program\n" << std::endl;
     std::wcout << L"======================\n" << std::endl;
