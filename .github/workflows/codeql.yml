@@ -35,17 +35,17 @@ jobs:
         shell: pwsh
         run: .\.vcpkg\bootstrap-vcpkg.bat -disableMetrics
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: c-cpp
-
       - name: Configure
         shell: pwsh
         run: >
           cmake -S . -B build -A x64
           -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/.vcpkg/scripts/buildsystems/vcpkg.cmake"
           -DBUILD_TESTING=OFF
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: c-cpp
 
       - name: Build
         run: cmake --build build --config Release
