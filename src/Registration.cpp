@@ -118,7 +118,7 @@ HRESULT RegisterCodec()
         if (FAILED(hr)) goto cleanup;
     }
 
-    hr = SetRegistryKeyValue(hKey, L"Version", L"1.0.0.0");
+    hr = SetRegistryKeyValue(hKey, L"Version", L"1.1.9.0");
     if (FAILED(hr)) goto cleanup;
 
     hr = SetRegistryKeyDWORD(hKey, L"SupportAnimation", 0);
@@ -215,7 +215,7 @@ HRESULT RegisterCodec()
         if (FAILED(hr)) goto cleanup;
 
         // Version
-        hr = SetRegistryKeyValue(hKey, L"Version", L"1.0.0.0");
+        hr = SetRegistryKeyValue(hKey, L"Version", L"1.1.9.0");
         if (FAILED(hr)) goto cleanup;
 
         // Supports lossless

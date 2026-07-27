@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/magnum-qin/RW2-WIC-Codec/security/advisories/new
+    about: Report security issues privately.
+  - name: Support guide
+    url: https://github.com/magnum-qin/RW2-WIC-Codec/blob/master/SUPPORT.md
+    about: Review troubleshooting and support guidance before opening an issue.

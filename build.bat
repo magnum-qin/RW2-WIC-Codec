@@ -1,72 +1,61 @@
 @echo off
-echo RW2 Codec Build Script
-echo =======================
+setlocal
+
+echo RW2 WIC Codec build
+echo ===================
 echo.
 
-REM Check if vcpkg toolchain is available
-if "%VCPKG_ROOT%"=="" (
-    echo WARNING: VCPKG_ROOT environment variable not set.
-    echo Please set it to your vcpkg installation directory, or
-    echo provide the toolchain file path manually.
-    echo.
-    echo Example: set VCPKG_ROOT=C:\vcpkg
-    echo.
-    pause
-    exit /b 1
-)
+where cmake >nul 2>&1
+if not errorlevel 1 goto :cmake_ok
+echo ERROR: CMake was not found in PATH.
+echo Install CMake 3.15 or later, or run from a Visual Studio Developer Command Prompt.
+exit /b 1
 
-set TOOLCHAIN=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake
+:cmake_ok
 
-if not exist "%TOOLCHAIN%" (
-    echo ERROR: vcpkg toolchain not found at: %TOOLCHAIN%
-    echo Please verify your VCPKG_ROOT path.
-    pause
-    exit /b 1
-)
+if defined VCPKG_ROOT goto :vcpkg_root_ok
+echo ERROR: VCPKG_ROOT is not set.
+echo Example: set VCPKG_ROOT=C:\vcpkg
+exit /b 1
 
-echo Step 1: Creating build directory...
-if not exist build mkdir build
-cd build
+:vcpkg_root_ok
+set "TOOLCHAIN=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake"
+if exist "%TOOLCHAIN%" goto :toolchain_ok
+echo ERROR: vcpkg toolchain was not found under VCPKG_ROOT.
+exit /b 1
 
-echo.
-echo Step 2: Configuring with CMake...
-cmake .. -DCMAKE_TOOLCHAIN_FILE="%TOOLCHAIN%" -DCMAKE_BUILD_TYPE=Release -A x64
+:toolchain_ok
+pushd "%~dp0"
 
-if %errorLevel% neq 0 (
-    echo.
-    echo ERROR: CMake configuration failed!
-    echo Make sure you have installed LibRaw: vcpkg install libraw:x64-windows
-    pause
-    exit /b 1
-)
+echo [1/4] Configuring CMake and manifest dependencies...
+cmake -S . -B build -A x64 -DCMAKE_TOOLCHAIN_FILE="%TOOLCHAIN%" -DBUILD_TESTING=ON
+if errorlevel 1 goto :failed
 
-echo.
-echo Step 3: Building Release configuration...
-cmake --build . --config Release
+echo [2/4] Building Release...
+cmake --build build --config Release
+if errorlevel 1 goto :failed
 
-if %errorLevel% neq 0 (
-    echo.
-    echo ERROR: Build failed!
-    pause
-    exit /b 1
-)
+echo [3/4] Running smoke tests...
+ctest --test-dir build -C Release --output-on-failure
+if errorlevel 1 goto :failed
+
+echo [4/4] Preparing portable package files...
+copy /Y "scripts\install.bat" "build\Release\install.bat" >nul
+copy /Y "scripts\uninstall.bat" "build\Release\uninstall.bat" >nul
+copy /Y "LICENSE" "build\Release\LICENSE" >nul
+copy /Y "THIRD_PARTY_NOTICES.md" "build\Release\THIRD_PARTY_NOTICES.md" >nul
+if not exist "build\Release\licenses" mkdir "build\Release\licenses"
+for %%P in (libraw lcms zlib libjpeg-turbo jasper) do if exist "vcpkg_installed\x64-windows\share\%%P\copyright" copy /Y "vcpkg_installed\x64-windows\share\%%P\copyright" "build\Release\licenses\%%P.txt" >nul
+if errorlevel 1 goto :failed
 
 echo.
-echo ========================================
-echo ✓ Build completed successfully!
-echo ========================================
-echo.
-echo Output files are in: %CD%\Release
-echo.
-echo Next steps:
-echo 1. Copy the following files to a single directory:
-echo    - RW2Codec.dll
-echo    - Any LibRaw DLL dependencies
-echo    - install.bat (from scripts/)
-echo    - uninstall.bat (from scripts/)
-echo.
-echo 2. Run install.bat as administrator to register the codec
-echo.
+echo Build completed successfully.
+echo Output: %CD%\build\Release
+popd
+exit /b 0
 
-cd ..
-pause
+:failed
+echo.
+echo ERROR: Build failed. See the output above and TROUBLESHOOTING.md.
+popd
+exit /b 1

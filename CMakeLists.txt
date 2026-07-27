@@ -3,6 +3,13 @@ project(RW2Codec VERSION 1.1.9 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+include(CTest)
+
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
 
 # Find LibRaw via vcpkg (package name is "libraw", targets are libraw::raw / libraw::raw_r)
 find_package(libraw CONFIG REQUIRED)
@@ -60,10 +67,17 @@ target_link_libraries(TestExif PRIVATE
     uuid
     ole32
     oleaut32
+    propsys
 )
 
 add_executable(TestPerf tests/TestPerf.cpp)
 target_link_libraries(TestPerf PRIVATE libraw::raw)
+
+if(BUILD_TESTING)
+    add_test(NAME TestDecoder.Help COMMAND TestDecoder --help)
+    add_test(NAME TestExif.Help COMMAND TestExif --help)
+    add_test(NAME TestPerf.Help COMMAND TestPerf --help)
+endif()
 
 # Installation
 install(TARGETS RW2Codec

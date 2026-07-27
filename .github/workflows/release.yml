@@ -8,53 +8,59 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-and-release:
     runs-on: windows-latest
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
-    - name: Set up MSVC Developer Command Prompt
-      uses: ilammy/msvc-dev-cmd@v1
+    - name: Check out pinned vcpkg
+      uses: actions/checkout@v7
       with:
-        arch: x64
+        repository: microsoft/vcpkg
+        ref: 6d9d7df564a1ccdaa994e4ad39ccd4a32360867b
+        path: .vcpkg
 
-    - name: Set up CMake
-      uses: jwlawson/actions-setup-cmake@v2
-      with:
-        cmake-version: '3.25.x'
-
-    - name: Install Dependencies via vcpkg
+    - name: Bootstrap vcpkg
       shell: pwsh
-      run: |
-        vcpkg install libraw:x64-windows
+      run: .\.vcpkg\bootstrap-vcpkg.bat -disableMetrics
 
     - name: Configure CMake
       shell: pwsh
       run: |
-        mkdir build
-        cd build
-        cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        cmake -S . -B build -A x64 `
+          -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/.vcpkg/scripts/buildsystems/vcpkg.cmake" `
+          -DVCPKG_TARGET_TRIPLET=x64-windows `
+          -DBUILD_TESTING=ON
 
     - name: Build Codec & Tools
       shell: pwsh
       run: |
-        cd build
-        cmake --build .
-        # Create Release folder and copy binaries to maintain the directory structure expected by Inno Setup
-        mkdir Release
-        Copy-Item -Path "RW2Codec.dll", "TestDecoder.exe", "TestExif.exe" -Destination "Release/" -Force
+        cmake --build build --config Release
+        ctest --test-dir build -C Release --output-on-failure
 
     - name: Stage Release Files
       shell: pwsh
       run: |
         # Copy dependency DLLs from vcpkg to build/Release/
-        Copy-Item -Path "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin/*.dll" -Destination "build/Release/" -Force
+        Copy-Item -Path "vcpkg_installed/x64-windows/bin/*.dll" -Destination "build/Release/" -Force
         
         # Copy install scripts
         Copy-Item -Path "scripts/*.bat" -Destination "build/Release/" -Force
+
+        # Include project and dependency license notices in every package
+        Copy-Item -Path "LICENSE", "THIRD_PARTY_NOTICES.md" -Destination "build/Release/" -Force
+        New-Item -ItemType Directory -Path "build/Release/licenses" -Force | Out-Null
+        Get-ChildItem -Path "vcpkg_installed/x64-windows/share" -Filter "copyright" -Recurse |
+          ForEach-Object {
+            Copy-Item -Path $_.FullName -Destination "build/Release/licenses/$($_.Directory.Name).txt" -Force
+          }
 
     - name: Compile Inno Setup Installer
       shell: pwsh
@@ -73,7 +79,7 @@ jobs:
     - name: Upload Artifacts to GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        name: "${{ github.ref_name }} EXIF Metadata & Security Update"
+        name: "${{ github.ref_name }}"
         body_path: RELEASE_NOTES.md
         files: |
           build/RW2Codec_Setup_v*.exe

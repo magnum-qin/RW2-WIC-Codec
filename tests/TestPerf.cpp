@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vector>
 #include <chrono>
+#include <string>
 
 void TestDecode(int qual, const char* name, std::vector<char>& buffer) {
     LibRaw raw;
@@ -25,6 +26,11 @@ void TestDecode(int qual, const char* name, std::vector<char>& buffer) {
 }
 
 int main(int argc, char* argv[]) {
+    if (argc >= 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h")) {
+        std::cout << "Usage: TestPerf.exe <path_to_rw2_file>" << std::endl;
+        return 0;
+    }
+
     if (argc < 2) return 1;
     std::ifstream file(argv[1], std::ios::binary | std::ios::ate);
     std::streamsize size = file.tellg();

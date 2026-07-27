@@ -39,6 +39,12 @@ int wmain(int argc, wchar_t* argv[])
     std::locale::global(std::locale(""));
     std::wcout.imbue(std::locale(""));
 
+    if (argc >= 2 && (std::wstring(argv[1]) == L"--help" || std::wstring(argv[1]) == L"-h"))
+    {
+        std::wcout << L"Usage: TestExif.exe <path_to_rw2_file>" << std::endl;
+        return 0;
+    }
+
     if (argc < 2) { std::wcout << L"Usage: TestExif.exe <rw2>" << std::endl; return 1; }
 
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);

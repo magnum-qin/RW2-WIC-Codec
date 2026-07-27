@@ -245,8 +245,8 @@ Application crashes when trying to use codec
    - Thumbnails may take a few seconds
 
 2. **Check LibRaw settings** in RW2FrameDecode.cpp:
-   - user_qual = 3 is highest quality but slowest
-   - Try user_qual = 0 for faster (lower quality) processing
+   - The current default is `user_qual = 2` (PPG).
+   - Lower-quality modes may be faster but change image detail and should be benchmarked with representative files.
 
 3. **Monitor CPU usage** - should spike during processing
 

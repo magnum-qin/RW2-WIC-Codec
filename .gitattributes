@@ -1,0 +1,13 @@
+* text=auto
+
+*.bat text eol=crlf
+*.cpp text eol=crlf
+*.h text eol=crlf
+*.iss text eol=crlf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+*.dll binary
+*.exe binary
+*.rw2 binary
