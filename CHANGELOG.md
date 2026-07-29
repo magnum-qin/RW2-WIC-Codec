@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.1.10] - 2026-07-29
+
 ### Added
 
 - Push and pull-request CI for Debug and Release builds.
@@ -16,6 +18,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Reworked the English, Chinese, and Japanese README files around installation, compatibility, verification, and support.
 - Kept the MIT license file machine-detectable by moving LibRaw notices into a dedicated document.
 - Synchronized the registered codec version with the project version.
+- Made release builds reproducible by pinning the vcpkg baseline and Windows build configuration.
+- Added CTest validation and license notices to generated release packages.
 
 ### Removed
 
@@ -68,7 +72,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - LibRaw-backed 24-bit BGR decoding.
 - CMake build and basic WIC decoder diagnostic.
 
-[Unreleased]: https://github.com/magnum-qin/RW2-WIC-Codec/compare/v1.1.9...HEAD
+[Unreleased]: https://github.com/magnum-qin/RW2-WIC-Codec/compare/v1.1.10...HEAD
+[1.1.10]: https://github.com/magnum-qin/RW2-WIC-Codec/compare/v1.1.9...v1.1.10
 [1.1.9]: https://github.com/magnum-qin/RW2-WIC-Codec/compare/v1.1.7...v1.1.9
 [1.1.7]: https://github.com/magnum-qin/RW2-WIC-Codec/compare/v1.1.6...v1.1.7
 [1.1.6]: https://github.com/magnum-qin/RW2-WIC-Codec/compare/v1.1.2...v1.1.6

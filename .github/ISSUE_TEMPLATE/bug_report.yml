@@ -12,7 +12,7 @@ body:
     id: version
     attributes:
       label: Codec version
-      placeholder: v1.1.9
+      placeholder: v1.1.10
     validations:
       required: true
   - type: dropdown

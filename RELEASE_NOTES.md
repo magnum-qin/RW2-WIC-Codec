@@ -1,6 +1,6 @@
-# RW2 WIC Codec v1.1.9
+# RW2 WIC Codec v1.1.10
 
-Version 1.1.9 is the current stable release for 64-bit Windows 10 and Windows 11.
+Version 1.1.10 is the current stable release for 64-bit Windows 10 and Windows 11.
 
 ## Highlights
 
@@ -12,22 +12,25 @@ Version 1.1.9 is the current stable release for 64-bit Windows 10 and Windows 11
 - Panasonic RW2 signature validation
 - Automated Windows x64 installer and ZIP packaging
 
-## Packaging fixes in v1.1.9
+## What changed in v1.1.10
 
-- Collect runtime dependencies by wildcard so vcpkg naming changes do not silently omit required DLLs.
-- Try `zlib1.dll`, `z.dll`, and `zlib.dll` when loading the zlib dependency.
-- Produce both an Inno Setup installer and a portable archive.
+- Added reproducible vcpkg dependency management with a pinned baseline.
+- Added Windows Debug and Release CI, CTest smoke tests, and CodeQL analysis.
+- Added contributor, security, support, issue, and pull-request workflows.
+- Added project and dependency license notices to generated packages.
+- Synchronized installer, registry, CMake, and package version metadata.
+- Removed prebuilt codec binaries from source control; release binaries remain available here.
 
 ## Downloads
 
-- `RW2Codec_Setup_v1.1.9.exe` — recommended installer
-- `RW2Codec-v1.1.9-x64.zip` — portable package with registration scripts
+- `RW2Codec_Setup_v1.1.10.exe` — recommended installer
+- `RW2Codec-v1.1.10-x64.zip` — portable package with registration scripts
 
-Download only from the [v1.1.9 release page](https://github.com/magnum-qin/RW2-WIC-Codec/releases/tag/v1.1.9). The artifacts are not code-signed; compare the SHA-256 digest displayed by GitHub before running them.
+Download only from the [v1.1.10 release page](https://github.com/magnum-qin/RW2-WIC-Codec/releases/tag/v1.1.10). The artifacts are not code-signed; compare the SHA-256 digest displayed by GitHub before running them.
 
 ## Upgrade
 
-Uninstall an older portable registration before moving or deleting its DLLs. Then install v1.1.9 and restart File Explorer. Installer-based installations can be upgraded by running the new installer.
+Uninstall an older portable registration before moving or deleting its DLLs. Then install v1.1.10 and restart File Explorer. Installer-based installations can be upgraded by running the new installer.
 
 ## Known limitations
 
