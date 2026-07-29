@@ -49,7 +49,7 @@ jobs:
       shell: pwsh
       run: |
         # Copy dependency DLLs from vcpkg to build/Release/
-        Copy-Item -Path "vcpkg_installed/x64-windows/bin/*.dll" -Destination "build/Release/" -Force
+        Copy-Item -Path "build/vcpkg_installed/x64-windows/bin/*.dll" -Destination "build/Release/" -Force
         
         # Copy install scripts
         Copy-Item -Path "scripts/*.bat" -Destination "build/Release/" -Force
@@ -57,7 +57,7 @@ jobs:
         # Include project and dependency license notices in every package
         Copy-Item -Path "LICENSE", "THIRD_PARTY_NOTICES.md" -Destination "build/Release/" -Force
         New-Item -ItemType Directory -Path "build/Release/licenses" -Force | Out-Null
-        Get-ChildItem -Path "vcpkg_installed/x64-windows/share" -Filter "copyright" -Recurse |
+        Get-ChildItem -Path "build/vcpkg_installed/x64-windows/share" -Filter "copyright" -Recurse |
           ForEach-Object {
             Copy-Item -Path $_.FullName -Destination "build/Release/licenses/$($_.Directory.Name).txt" -Force
           }
