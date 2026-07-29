@@ -77,7 +77,7 @@ jobs:
         Compress-Archive -Path "build/Release/*" -DestinationPath "build/RW2Codec-${{ github.ref_name }}-x64.zip" -Force
 
     - name: Upload Artifacts to GitHub Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         name: "${{ github.ref_name }}"
         body_path: RELEASE_NOTES.md
