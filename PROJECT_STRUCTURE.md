@@ -92,4 +92,4 @@ Release preparation must update these files together:
 - `RELEASE_NOTES.md`
 - `CHANGELOG.md`
 
-The current version is 1.1.9.
+The current version is 1.1.10.

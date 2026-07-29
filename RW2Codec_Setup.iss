@@ -6,7 +6,7 @@
 ; AppId uniquely identifies this application.
 AppId={{8F3E8E60-9C1A-4B3D-A5E1-7C9F8B2D4A3C}_Installer}
 AppName=Panasonic RW2 WIC Codec
-AppVersion=1.1.9
+AppVersion=1.1.10
 AppPublisher=RW2-WIC-Codec Project
 AppPublisherURL=https://github.com/magnum-qin/RW2-WIC-Codec
 AppSupportURL=https://github.com/magnum-qin/RW2-WIC-Codec
@@ -30,7 +30,7 @@ DefaultGroupName=Panasonic RW2 WIC Codec
 
 ; Output settings
 OutputDir=.\build
-OutputBaseFilename=RW2Codec_Setup_v1.1.9
+OutputBaseFilename=RW2Codec_Setup_v1.1.10
 Compression=lzma2/ultra64
 SolidCompression=yes
 
