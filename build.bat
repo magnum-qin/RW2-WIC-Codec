@@ -45,7 +45,7 @@ copy /Y "scripts\uninstall.bat" "build\Release\uninstall.bat" >nul
 copy /Y "LICENSE" "build\Release\LICENSE" >nul
 copy /Y "THIRD_PARTY_NOTICES.md" "build\Release\THIRD_PARTY_NOTICES.md" >nul
 if not exist "build\Release\licenses" mkdir "build\Release\licenses"
-for %%P in (libraw lcms zlib libjpeg-turbo jasper) do if exist "vcpkg_installed\x64-windows\share\%%P\copyright" copy /Y "vcpkg_installed\x64-windows\share\%%P\copyright" "build\Release\licenses\%%P.txt" >nul
+for %%P in (libraw lcms zlib libjpeg-turbo jasper) do if exist "build\vcpkg_installed\x64-windows\share\%%P\copyright" copy /Y "build\vcpkg_installed\x64-windows\share\%%P\copyright" "build\Release\licenses\%%P.txt" >nul
 if errorlevel 1 goto :failed
 
 echo.

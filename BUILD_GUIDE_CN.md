@@ -94,7 +94,7 @@ mkdir package
 copy build\Release\RW2Codec.dll package\
 copy build\Release\Test*.exe package\
 copy scripts\*.bat package\
-copy vcpkg_installed\x64-windows\bin\*.dll package\
+copy build\vcpkg_installed\x64-windows\bin\*.dll package\
 ```
 
 如果使用的是 classic vcpkg 布局，依赖 DLL 可能位于：
